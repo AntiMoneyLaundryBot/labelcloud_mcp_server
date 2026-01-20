@@ -1,0 +1,1369 @@
+{
+    "openapi": "3.0.0",
+    "paths": {
+        "/v1/accounts": {
+            "post": {
+                "operationId": "ApiAccountController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateAccountDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAccount"
+                ]
+            }
+        },
+        "/v1/accounts/{apiKey}": {
+            "delete": {
+                "operationId": "ApiAccountController_destroy",
+                "parameters": [
+                    {
+                        "name": "apiKey",
+                        "required": true,
+                        "in": "path",
+                        "description": "Api key",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAccount"
+                ]
+            },
+            "get": {
+                "operationId": "ApiAccountController_show",
+                "parameters": [
+                    {
+                        "name": "apiKey",
+                        "required": true,
+                        "in": "path",
+                        "description": "Api key",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "404": {
+                        "description": "Account not found"
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAccount"
+                ]
+            }
+        },
+        "/v1/accounts/roles": {
+            "get": {
+                "operationId": "ApiAccountController_roles",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAccount"
+                ]
+            }
+        },
+        "/v1/black-list/addresses": {
+            "get": {
+                "operationId": "ApiAddressBlacklistController_search",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "required": true,
+                        "in": "query",
+                        "description": "Address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "blockchains",
+                        "required": false,
+                        "in": "query",
+                        "description": "Blockchain of the address",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "unknown",
+                                    "tron",
+                                    "ethereum",
+                                    "bitcoin",
+                                    "solana",
+                                    "evmos",
+                                    "cosmos",
+                                    "polygon",
+                                    "arbitrum",
+                                    "avalanche",
+                                    "cronos",
+                                    "optimism",
+                                    "evm_eoa",
+                                    "sui",
+                                    "aptos",
+                                    "doge",
+                                    "bsc",
+                                    "ton",
+                                    "zksync",
+                                    "multiversx",
+                                    "ripple",
+                                    "tao",
+                                    "polkadot",
+                                    "ronin",
+                                    "cardano",
+                                    "confidence",
+                                    "monero",
+                                    "centrifuge",
+                                    "acala",
+                                    "algorand",
+                                    "zcash",
+                                    "dash",
+                                    "litecoin",
+                                    "blast",
+                                    "xrp_ledger",
+                                    "near",
+                                    "terra_classic",
+                                    "manta",
+                                    "moonbeam",
+                                    "base",
+                                    "bitcoin_cash",
+                                    "scroll",
+                                    "eos",
+                                    "kaspa",
+                                    "theta",
+                                    "internet_computer",
+                                    "sei",
+                                    "thor_chain",
+                                    "stellar",
+                                    "injective",
+                                    "zilliqa",
+                                    "hedera",
+                                    "astar",
+                                    "bittensor",
+                                    "ethereum_classic",
+                                    "kava",
+                                    "kusama",
+                                    "tezos",
+                                    "filecoin",
+                                    "enjin",
+                                    "neuroweb",
+                                    "krest",
+                                    "hydration",
+                                    "bts",
+                                    "waves"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "name": "statuses",
+                        "required": false,
+                        "in": "query",
+                        "description": "Status of the address",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "ACTIVE",
+                                    "DELETED"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "name": "entityId",
+                        "required": false,
+                        "in": "query",
+                        "description": "Entity id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "fields",
+                        "required": false,
+                        "in": "query",
+                        "description": "Address fields, default: address, network, description, type, subType, reference, fileLink",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "address",
+                                    "network",
+                                    "description",
+                                    "type",
+                                    "subType",
+                                    "reference",
+                                    "fileLink",
+                                    "entityId"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddressBlacklist"
+                ]
+            },
+            "post": {
+                "operationId": "ApiAddressBlacklistController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateAddressDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddressBlacklist"
+                ]
+            }
+        },
+        "/v1/black-list/addresses/entity/{entityId}": {
+            "get": {
+                "operationId": "ApiAddressBlacklistController_searchByEntity",
+                "parameters": [
+                    {
+                        "name": "entityId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "fields",
+                        "required": false,
+                        "in": "query",
+                        "description": "Address fields, default: address, network, description, type, subType, reference, fileLink",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "address",
+                                    "network",
+                                    "description",
+                                    "type",
+                                    "subType",
+                                    "reference",
+                                    "fileLink",
+                                    "entityId"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddressBlacklist"
+                ]
+            }
+        },
+        "/v1/black-list/addresses/entity/{entityId}/paginate": {
+            "get": {
+                "operationId": "ApiAddressBlacklistController_paginateByEntity",
+                "parameters": [
+                    {
+                        "name": "entityId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "fields",
+                        "required": false,
+                        "in": "query",
+                        "description": "Address fields, default: address, network, description, type, subType, reference, fileLink",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "address",
+                                    "network",
+                                    "description",
+                                    "type",
+                                    "subType",
+                                    "reference",
+                                    "fileLink",
+                                    "entityId"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddressBlacklist"
+                ]
+            }
+        },
+        "/v1/black-list/addresses/{address}": {
+            "delete": {
+                "operationId": "ApiAddressBlacklistController_destroy",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "required": false,
+                        "in": "query",
+                        "description": "Address network",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "unknown",
+                                "tron",
+                                "ethereum",
+                                "bitcoin",
+                                "solana",
+                                "evmos",
+                                "cosmos",
+                                "polygon",
+                                "arbitrum",
+                                "avalanche",
+                                "cronos",
+                                "optimism",
+                                "evm_eoa",
+                                "sui",
+                                "aptos",
+                                "doge",
+                                "bsc",
+                                "ton",
+                                "zksync",
+                                "multiversx",
+                                "ripple",
+                                "tao",
+                                "polkadot",
+                                "ronin",
+                                "cardano",
+                                "confidence",
+                                "monero",
+                                "centrifuge",
+                                "acala",
+                                "algorand",
+                                "zcash",
+                                "dash",
+                                "litecoin",
+                                "blast",
+                                "xrp_ledger",
+                                "near",
+                                "terra_classic",
+                                "manta",
+                                "moonbeam",
+                                "base",
+                                "bitcoin_cash",
+                                "scroll",
+                                "eos",
+                                "kaspa",
+                                "theta",
+                                "internet_computer",
+                                "sei",
+                                "thor_chain",
+                                "stellar",
+                                "injective",
+                                "zilliqa",
+                                "hedera",
+                                "astar",
+                                "bittensor",
+                                "ethereum_classic",
+                                "kava",
+                                "kusama",
+                                "tezos",
+                                "filecoin",
+                                "enjin",
+                                "neuroweb",
+                                "krest",
+                                "hydration",
+                                "bts",
+                                "waves"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddressBlacklist"
+                ]
+            }
+        },
+        "/v1/black-list/networks": {
+            "get": {
+                "operationId": "ApiCommonController_getNetworks",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiCommon"
+                ]
+            }
+        },
+        "/v1/black-list/types": {
+            "get": {
+                "operationId": "ApiCommonController_getTypes",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiCommon"
+                ]
+            }
+        },
+        "/v1/black-list/addresses/{address}/blockchains/{network}/files": {
+            "post": {
+                "operationId": "ApiAddressFileController_upload",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address blockchain",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "unknown",
+                                "tron",
+                                "ethereum",
+                                "bitcoin",
+                                "solana",
+                                "evmos",
+                                "cosmos",
+                                "polygon",
+                                "arbitrum",
+                                "avalanche",
+                                "cronos",
+                                "optimism",
+                                "evm_eoa",
+                                "sui",
+                                "aptos",
+                                "doge",
+                                "bsc",
+                                "ton",
+                                "zksync",
+                                "multiversx",
+                                "ripple",
+                                "tao",
+                                "polkadot",
+                                "ronin",
+                                "cardano",
+                                "confidence",
+                                "monero",
+                                "centrifuge",
+                                "acala",
+                                "algorand",
+                                "zcash",
+                                "dash",
+                                "litecoin",
+                                "blast",
+                                "xrp_ledger",
+                                "near",
+                                "terra_classic",
+                                "manta",
+                                "moonbeam",
+                                "base",
+                                "bitcoin_cash",
+                                "scroll",
+                                "eos",
+                                "kaspa",
+                                "theta",
+                                "internet_computer",
+                                "sei",
+                                "thor_chain",
+                                "stellar",
+                                "injective",
+                                "zilliqa",
+                                "hedera",
+                                "astar",
+                                "bittensor",
+                                "ethereum_classic",
+                                "kava",
+                                "kusama",
+                                "tezos",
+                                "filecoin",
+                                "enjin",
+                                "neuroweb",
+                                "krest",
+                                "hydration",
+                                "bts",
+                                "waves"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddressFile"
+                ]
+            },
+            "get": {
+                "operationId": "ApiAddressFileController_list",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address blockchain",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "unknown",
+                                "tron",
+                                "ethereum",
+                                "bitcoin",
+                                "solana",
+                                "evmos",
+                                "cosmos",
+                                "polygon",
+                                "arbitrum",
+                                "avalanche",
+                                "cronos",
+                                "optimism",
+                                "evm_eoa",
+                                "sui",
+                                "aptos",
+                                "doge",
+                                "bsc",
+                                "ton",
+                                "zksync",
+                                "multiversx",
+                                "ripple",
+                                "tao",
+                                "polkadot",
+                                "ronin",
+                                "cardano",
+                                "confidence",
+                                "monero",
+                                "centrifuge",
+                                "acala",
+                                "algorand",
+                                "zcash",
+                                "dash",
+                                "litecoin",
+                                "blast",
+                                "xrp_ledger",
+                                "near",
+                                "terra_classic",
+                                "manta",
+                                "moonbeam",
+                                "base",
+                                "bitcoin_cash",
+                                "scroll",
+                                "eos",
+                                "kaspa",
+                                "theta",
+                                "internet_computer",
+                                "sei",
+                                "thor_chain",
+                                "stellar",
+                                "injective",
+                                "zilliqa",
+                                "hedera",
+                                "astar",
+                                "bittensor",
+                                "ethereum_classic",
+                                "kava",
+                                "kusama",
+                                "tezos",
+                                "filecoin",
+                                "enjin",
+                                "neuroweb",
+                                "krest",
+                                "hydration",
+                                "bts",
+                                "waves"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "statuses",
+                        "required": false,
+                        "in": "query",
+                        "description": "Address status",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "ACTIVE",
+                                    "DELETED"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddressFile"
+                ]
+            }
+        },
+        "/v1/black-list/addresses/{address}/blockchains/{network}/files/{file_id}/restored": {
+            "put": {
+                "operationId": "ApiAddressFileController_restore",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address blockchain",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "unknown",
+                                "tron",
+                                "ethereum",
+                                "bitcoin",
+                                "solana",
+                                "evmos",
+                                "cosmos",
+                                "polygon",
+                                "arbitrum",
+                                "avalanche",
+                                "cronos",
+                                "optimism",
+                                "evm_eoa",
+                                "sui",
+                                "aptos",
+                                "doge",
+                                "bsc",
+                                "ton",
+                                "zksync",
+                                "multiversx",
+                                "ripple",
+                                "tao",
+                                "polkadot",
+                                "ronin",
+                                "cardano",
+                                "confidence",
+                                "monero",
+                                "centrifuge",
+                                "acala",
+                                "algorand",
+                                "zcash",
+                                "dash",
+                                "litecoin",
+                                "blast",
+                                "xrp_ledger",
+                                "near",
+                                "terra_classic",
+                                "manta",
+                                "moonbeam",
+                                "base",
+                                "bitcoin_cash",
+                                "scroll",
+                                "eos",
+                                "kaspa",
+                                "theta",
+                                "internet_computer",
+                                "sei",
+                                "thor_chain",
+                                "stellar",
+                                "injective",
+                                "zilliqa",
+                                "hedera",
+                                "astar",
+                                "bittensor",
+                                "ethereum_classic",
+                                "kava",
+                                "kusama",
+                                "tezos",
+                                "filecoin",
+                                "enjin",
+                                "neuroweb",
+                                "krest",
+                                "hydration",
+                                "bts",
+                                "waves"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "file_id",
+                        "required": true,
+                        "in": "path",
+                        "description": "File id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddressFile"
+                ]
+            }
+        },
+        "/v1/black-list/addresses/{address}/blockchains/{network}/files/{file_id}": {
+            "delete": {
+                "operationId": "ApiAddressFileController_destroy",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address blockchain",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "unknown",
+                                "tron",
+                                "ethereum",
+                                "bitcoin",
+                                "solana",
+                                "evmos",
+                                "cosmos",
+                                "polygon",
+                                "arbitrum",
+                                "avalanche",
+                                "cronos",
+                                "optimism",
+                                "evm_eoa",
+                                "sui",
+                                "aptos",
+                                "doge",
+                                "bsc",
+                                "ton",
+                                "zksync",
+                                "multiversx",
+                                "ripple",
+                                "tao",
+                                "polkadot",
+                                "ronin",
+                                "cardano",
+                                "confidence",
+                                "monero",
+                                "centrifuge",
+                                "acala",
+                                "algorand",
+                                "zcash",
+                                "dash",
+                                "litecoin",
+                                "blast",
+                                "xrp_ledger",
+                                "near",
+                                "terra_classic",
+                                "manta",
+                                "moonbeam",
+                                "base",
+                                "bitcoin_cash",
+                                "scroll",
+                                "eos",
+                                "kaspa",
+                                "theta",
+                                "internet_computer",
+                                "sei",
+                                "thor_chain",
+                                "stellar",
+                                "injective",
+                                "zilliqa",
+                                "hedera",
+                                "astar",
+                                "bittensor",
+                                "ethereum_classic",
+                                "kava",
+                                "kusama",
+                                "tezos",
+                                "filecoin",
+                                "enjin",
+                                "neuroweb",
+                                "krest",
+                                "hydration",
+                                "bts",
+                                "waves"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "file_id",
+                        "required": true,
+                        "in": "path",
+                        "description": "File id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddressFile"
+                ]
+            }
+        },
+        "/api/addresses/{address}": {
+            "get": {
+                "operationId": "ApiAddressController_search",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddress"
+                ]
+            }
+        },
+        "/v1/black-list/entities": {
+            "get": {
+                "operationId": "ApiEntityController_search",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "required": true,
+                        "in": "query",
+                        "description": "Entity name",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "required": false,
+                        "in": "query",
+                        "description": "Entity type",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "subType",
+                        "required": false,
+                        "in": "query",
+                        "description": "Entity sub type",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "statuses",
+                        "required": false,
+                        "in": "query",
+                        "description": "Status of the entity",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "ACTIVE",
+                                    "DELETED"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "name": "fields",
+                        "required": false,
+                        "in": "query",
+                        "description": "Entity fields, default: description, type, subType, reference",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "name",
+                                    "publicInfo",
+                                    "description",
+                                    "type",
+                                    "subType",
+                                    "reference"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiEntity"
+                ]
+            },
+            "post": {
+                "operationId": "ApiEntityController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateEntityDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiEntity"
+                ]
+            }
+        },
+        "/v1/black-list/entities/{entityId}": {
+            "get": {
+                "operationId": "ApiEntityController_show",
+                "parameters": [
+                    {
+                        "name": "entityId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Entity ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiEntity"
+                ]
+            },
+            "delete": {
+                "operationId": "ApiEntityController_destroy",
+                "parameters": [
+                    {
+                        "name": "entityId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Entity id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiEntity"
+                ]
+            }
+        }
+    },
+    "info": {
+        "title": "BLACKLIST SERVICE",
+        "description": "This is the Address Blacklist API documentation",
+        "version": "0.0.1",
+        "contact": {}
+    },
+    "tags": [],
+    "servers": [],
+    "components": {
+        "securitySchemes": {
+            "X-Api-Key": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Api-Key"
+            }
+        },
+        "schemas": {
+            "CreateAccountDto": {
+                "type": "object",
+                "properties": {
+                    "userName": {
+                        "type": "string",
+                        "description": "Account's username"
+                    },
+                    "organization": {
+                        "type": "string",
+                        "description": "Account's  organization"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Account's  email"
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "Account's  role"
+                    }
+                },
+                "required": [
+                    "userName",
+                    "organization",
+                    "email",
+                    "role"
+                ]
+            },
+            "CreateAddressDto": {
+                "type": "object",
+                "properties": {
+                    "address": {
+                        "type": "string",
+                        "description": "Address hash"
+                    },
+                    "network": {
+                        "type": "string",
+                        "description": "Address blockchain",
+                        "enum": [
+                            "unknown",
+                            "tron",
+                            "ethereum",
+                            "bitcoin",
+                            "solana",
+                            "evmos",
+                            "cosmos",
+                            "polygon",
+                            "arbitrum",
+                            "avalanche",
+                            "cronos",
+                            "optimism",
+                            "evm_eoa",
+                            "sui",
+                            "aptos",
+                            "doge",
+                            "bsc",
+                            "ton",
+                            "zksync",
+                            "multiversx",
+                            "ripple",
+                            "tao",
+                            "polkadot",
+                            "ronin",
+                            "cardano",
+                            "confidence",
+                            "monero",
+                            "centrifuge",
+                            "acala",
+                            "algorand",
+                            "zcash",
+                            "dash",
+                            "litecoin",
+                            "blast",
+                            "xrp_ledger",
+                            "near",
+                            "terra_classic",
+                            "manta",
+                            "moonbeam",
+                            "base",
+                            "bitcoin_cash",
+                            "scroll",
+                            "eos",
+                            "kaspa",
+                            "theta",
+                            "internet_computer",
+                            "sei",
+                            "thor_chain",
+                            "stellar",
+                            "injective",
+                            "zilliqa",
+                            "hedera",
+                            "astar",
+                            "bittensor",
+                            "ethereum_classic",
+                            "kava",
+                            "kusama",
+                            "tezos",
+                            "filecoin",
+                            "enjin",
+                            "neuroweb",
+                            "krest",
+                            "hydration",
+                            "bts",
+                            "waves"
+                        ]
+                    },
+                    "isPublicInfo": {
+                        "type": "boolean",
+                        "description": "Whether address is public or not"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Address description"
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Address type"
+                    },
+                    "subType": {
+                        "type": "string",
+                        "description": "Address sub type"
+                    },
+                    "reference": {
+                        "type": "string",
+                        "description": "Address reference, e.g. explorer url"
+                    },
+                    "entityId": {
+                        "type": "string",
+                        "description": "Entity id"
+                    }
+                },
+                "required": [
+                    "address",
+                    "network",
+                    "isPublicInfo"
+                ]
+            },
+            "CreateEntityDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Entity name"
+                    },
+                    "isPublicInfo": {
+                        "type": "boolean",
+                        "description": "Whether entity is public or not"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Entity description"
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Entity type"
+                    },
+                    "subType": {
+                        "type": "string",
+                        "description": "Entity sub type"
+                    },
+                    "reference": {
+                        "type": "string",
+                        "description": "Entity reference, e.g. explorer url"
+                    }
+                },
+                "required": [
+                    "name",
+                    "isPublicInfo"
+                ]
+            }
+        }
+    }
+}
