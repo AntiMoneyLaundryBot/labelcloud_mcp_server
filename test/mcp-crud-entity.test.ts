@@ -8,11 +8,20 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverPath = path.join(__dirname, "..", "dist", "index.js");
 
+/**
+ * Sleep for a specified number of milliseconds.
+ * Used to handle API eventual consistency.
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 describe("MCP Entity CRUD Operations with Address Association", () => {
   it("should create entity, associate address, and clean up via MCP", async () => {
     const timestamp = Date.now();
     const entityName = `MCP-CRUD-Test-Entity-${timestamp}`;
-    const testAddress = "TUzMcqv8a2pKy9tpyjEk27MELRujuS9BrY";
+    // Use a different address than mcp-crud-address.test.ts to avoid test isolation issues
+    const testAddress = "TVXuWEmTkhDzZMUprz3EfZA1WHNHULivmJ";
     const network = "tron";
 
     const transport = new StdioClientTransport({
@@ -106,6 +115,10 @@ describe("MCP Entity CRUD Operations with Address Association", () => {
       );
       assert.ok(createAddressContent, "Create address should have text content");
       console.log("Create address result:", createAddressContent.text);
+
+      // Wait for API eventual consistency before verifying address association
+      console.log("\nWaiting 1 second for API consistency...");
+      await sleep(1000);
 
       // Step 4: Get entity addresses via GET /v1/black-list/addresses/entity/{entityId}
       console.log("\nStep 4: Getting entity addresses via get_entity_addresses...");

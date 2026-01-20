@@ -17,13 +17,15 @@ export const toolConfigs: ToolConfig[] = [
   {
     operationId: "ApiAddressBlacklistController_create",
     name: "create_address",
-    description: "Add a blockchain address to the AMLBot Label Cloud",
+    description:
+      "Add a blockchain address (e.g., '0x...' for Ethereum, 'T...' for Tron) to the Label Cloud. Optional entityId must be a UUID from search_entities, not an entity name.",
     include: true,
   },
   {
     operationId: "ApiAddressBlacklistController_search",
     name: "search_addresses",
-    description: "Search for addresses in the AMLBot Label Cloud",
+    description:
+      "Search for a specific blockchain address by its hash (e.g., '0x...' or 'T...'). Cannot search by entity name - use search_entities for that.",
     include: true,
   },
   {
@@ -35,7 +37,8 @@ export const toolConfigs: ToolConfig[] = [
   {
     operationId: "ApiAddressBlacklistController_searchByEntity",
     name: "get_entity_addresses",
-    description: "Get all addresses associated with an entity",
+    description:
+      "Get all blockchain addresses associated with an entity. Requires entityId (UUID from search_entities), not the entity name.",
     include: true,
   },
   {
@@ -49,25 +52,29 @@ export const toolConfigs: ToolConfig[] = [
   {
     operationId: "ApiEntityController_create",
     name: "create_entity",
-    description: "Create a new entity in the AMLBot Label Cloud",
+    description:
+      "Create a new entity in the AMLBot Label Cloud. Returns the created entity including its 'id' (UUID) for use in other operations.",
     include: true,
   },
   {
     operationId: "ApiEntityController_search",
     name: "search_entities",
-    description: "Search for entities in the AMLBot Label Cloud",
+    description:
+      "Search for entities by name. Returns entity details including the 'id' field (UUID) needed for other entity operations like get_entity_addresses.",
     include: true,
   },
   {
     operationId: "ApiEntityController_show",
     name: "get_entity",
-    description: "Get an entity by its ID",
+    description:
+      "Get entity details by UUID. Use search_entities first to find the entityId if you only have the name.",
     include: true,
   },
   {
     operationId: "ApiEntityController_destroy",
     name: "delete_entity",
-    description: "Delete an entity from the AMLBot Label Cloud",
+    description:
+      "Delete an entity by UUID. Use search_entities first to find the entityId if you only have the name.",
     include: true,
   },
 

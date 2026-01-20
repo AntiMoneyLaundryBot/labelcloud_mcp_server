@@ -7,6 +7,17 @@
 
 import { getIncludedToolConfigs, getToolConfigByOperationId } from "./tool-config.js";
 
+/**
+ * Parameter description overrides to enhance OpenAPI descriptions for LLM clarity.
+ * These provide explicit format hints and usage guidance that the OpenAPI spec lacks.
+ */
+const paramDescriptionOverrides: Record<string, string> = {
+  entityId:
+    "Entity UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Get this from search_entities response 'id' field, not the entity name.",
+  address:
+    "Blockchain address hash (e.g., '0x1234...' for Ethereum, 'T...' for Tron). Not an entity name.",
+};
+
 // OpenAPI types (simplified for our use case)
 interface OpenAPIParameter {
   name: string;
@@ -102,6 +113,20 @@ function resolveRef(ref: string, spec: OpenAPISpec): OpenAPISchema | undefined {
 }
 
 /**
+ * Get enhanced description for a parameter, using override if available
+ */
+function getEnhancedDescription(
+  paramName: string,
+  originalDescription?: string
+): string | undefined {
+  const override = paramDescriptionOverrides[paramName];
+  if (override) {
+    return override;
+  }
+  return originalDescription;
+}
+
+/**
  * Convert OpenAPI parameter to MCP property
  */
 function parameterToProperty(param: OpenAPIParameter): {
@@ -111,7 +136,7 @@ function parameterToProperty(param: OpenAPIParameter): {
 } {
   const property: MCPToolInputSchema["properties"][string] = {
     type: param.schema.type,
-    description: param.description,
+    description: getEnhancedDescription(param.name, param.description),
   };
 
   if (param.schema.enum) {
@@ -175,7 +200,7 @@ function buildInputSchema(
       for (const [propName, propSchema] of Object.entries(resolvedSchema.properties)) {
         properties[propName] = {
           type: propSchema.type,
-          description: propSchema.description,
+          description: getEnhancedDescription(propName, propSchema.description),
         };
 
         if (propSchema.enum) {
