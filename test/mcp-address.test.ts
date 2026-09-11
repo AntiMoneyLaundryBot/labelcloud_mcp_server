@@ -5,6 +5,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { devServerEnv } from "./helpers/dev-endpoint.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverPath = path.join(__dirname, "..", "dist", "index.js");
@@ -16,13 +17,13 @@ describe("MCP Address Blocklist", () => {
     // Spawn the MCP server
     const serverProcess = spawn("node", [serverPath], {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env },
+      env: devServerEnv(),
     });
 
     const transport = new StdioClientTransport({
       command: "node",
       args: [serverPath],
-      env: { ...process.env },
+      env: devServerEnv(),
     });
 
     const client = new Client({

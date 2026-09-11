@@ -36,3 +36,102 @@ coverage/
 
 # Optional: Claude Code settings (remove if you want to share settings)
 .claude/
+
+# direnv (contains GH_TOKEN)
+.envrc
+
+# Claude agent — gitignored per SharedRules/peppermint-task-{planning,completion}.md
+plans/
+workdone/
+# Local secrets / agent / editor / machine config & build artifacts — never commit
+# (keeps *.example / *.sample templates, which ARE meant to be committed)
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.*.sample
+.npmrc
+.claude/
+.mcp.json
+.mcp.*.json
+.vscode/
+.idea/
+.DS_Store
+.coverage
+.dagster_home/
+
+# ============================================================================
+# AMLBotDS .gitignore FLOOR  (safe, additive — see ClaudeShared/rules/no-dotfiles-in-git.md)
+# ----------------------------------------------------------------------------
+# Installer applies this body ADDITIVELY to any nested repo that lacks the floor.
+# It prepends/merges these lines; it does NOT remove a repo's existing rules.
+# Already-tracked files are NOT protected by .gitignore — untrack them with
+#   git rm --cached <file>   (see s6-secrets.md runbook §C).
+# This floor is PREVENTION only. It does NOT rotate keys or rewrite history.
+# Provenance: rule imported from coordinator; minted by the AMLBotDS 2026-05-28
+#   tracer-internal-api incident. (AMLBotDS has run no retros of its own.)
+# ============================================================================
+
+# Dotfiles are NEVER committed (secrets / local config live outside git).
+# Only .gitignore itself is tracked. .* matches EVERY dotfile by default;
+# add a narrow !-exception per EXACT file only if CI needs it AND it has no secret.
+.*
+!.gitignore
+
+# Local secrets / agent / editor / machine config — never commit.
+# (*.example / *.sample templates ARE meant to be committed, so they are re-included)
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.*.sample
+.envrc
+.mcp.json
+.mcp.*.json
+.npmrc
+.amlbot.dev.api
+.claude/
+.vscode/
+.idea/
+.DS_Store
+.coverage
+.dagster_home/
+
+# Claude agent working dirs — gitignored per peppermint-task-{planning,completion}.md
+plans/
+workdone/
+
+# Build / deps / local artifacts
+node_modules/
+dist/
+cache/
+*.log
+
+
+# ============================================================================
+# PRE-PUSH GATE  (verbatim — wire as .git/hooks/pre-push, or run before any push)
+# Refuses the push if any secret-bearing dotfile is staged or tracked.
+# Prints "OK" and exits 0 when clean. See no-dotfiles-in-git.md clause 3.
+# ----------------------------------------------------------------------------
+# #!/usr/bin/env bash
+# set -euo pipefail
+#
+# # (1) any tracked dotfile other than .gitignore is a violation
+# tracked_dotfiles="$(git ls-files | grep -E '(^|/)\.[^/]' | grep -vx '.gitignore' || true)"
+#
+# # (2) belt-and-suspenders: explicitly catch staged .env / settings.local.json
+# staged_secrets="$(git diff --cached --name-only | grep -E '(^|/)(\.env([.].*)?|settings\.local\.json)$' || true)"
+#
+# if [ -n "$tracked_dotfiles" ] || [ -n "$staged_secrets" ]; then
+#   echo "ABORT: secret-bearing dotfile(s) would be pushed:" >&2
+#   [ -n "$tracked_dotfiles" ] && { echo "  tracked dotfiles:" >&2; echo "$tracked_dotfiles" | sed 's/^/    /' >&2; }
+#   [ -n "$staged_secrets" ]   && { echo "  staged secrets:"   >&2; echo "$staged_secrets"   | sed 's/^/    /' >&2; }
+#   echo "  -> git rm --cached the file(s); if a secret leaked, ROTATE at the provider" >&2
+#   echo "     and PURGE history (git filter-repo / BFG) before pushing." >&2
+#   exit 1
+# fi
+# echo "OK"
+# exit 0
+# ============================================================================
