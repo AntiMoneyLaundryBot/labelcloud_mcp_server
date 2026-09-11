@@ -18,14 +18,17 @@ export const toolConfigs: ToolConfig[] = [
     operationId: "ApiAddressBlacklistController_create",
     name: "create_address",
     description:
-      "Add a blockchain address (e.g., '0x...' for Ethereum, 'T...' for Tron) to the Label Cloud. Optional entityId must be a UUID from search_entities, not an entity name.",
+      "Add a blockchain address (e.g., '0x...' for Ethereum, 'T...' for Tron) to the Label Cloud, or upsert an existing one. Optional entityId must be a UUID from search_entities, not an entity name. " +
+      "THIS IS A FULL UPSERT, NOT A PATCH - there is no PATCH route. To change ONE field (e.g. flip enableSniffer) on an address that already exists, you MUST first call search_addresses on it with fields including entityId, description, type, subType, reference, enableSniffer, originAddress, previousAddress, txHash, txBlockchain, txTimestamp, then resend this call with every one of those values carried over unchanged plus only your intended change. " +
+      "Never omit entityId on an existing address that has one: an omitted/absent entityId is written as a literal null, which detaches the address from its entity and forces the address to become publicly visible in the public blacklist. `type` is required and effectively controls severity on the fast path - never guess it; always use the exact value read back from search_addresses, not a paraphrase.",
     include: true,
   },
   {
     operationId: "ApiAddressBlacklistController_search",
     name: "search_addresses",
     description:
-      "Search for a specific blockchain address by its hash (e.g., '0x...' or 'T...'). Cannot search by entity name - use search_entities for that.",
+      "Search for a specific blockchain address by its hash (e.g., '0x...' or 'T...'). Cannot search by entity name - use search_entities for that. " +
+      "Pass fields (e.g. enableSniffer, originAddress, previousAddress, txHash, txBlockchain, txTimestamp, publicInfo, organization, entityId, description, type, subType, reference) to read back the full record - required before using create_address to upsert/flip a flag on an existing address, since that call is a full-record write with no PATCH equivalent.",
     include: true,
   },
   {
@@ -46,6 +49,20 @@ export const toolConfigs: ToolConfig[] = [
     name: "paginate_entity_addresses",
     description: "Get paginated addresses associated with an entity",
     include: false, // Not currently exposed
+  },
+  {
+    operationId: "ApiAddressBlacklistController_findByOrigin",
+    name: "get_addresses_by_origin",
+    description:
+      "Every address a red label propagated to from an origin address, as a complete edge list - every row where originAddress matches, ordered txTimestamp ASC then address ASC. Each edge carries address, previousAddress, txHash, txBlockchain, txTimestamp. Org-blind: returns edges across all organizations, not just the caller's own. limit defaults to 10000 (max 10000), offset defaults to 0; offset is applied after an exhaustive, service-side sort of the whole partition, so cost scales with partition size, not with offset.",
+    include: true,
+  },
+  {
+    operationId: "ApiAddressBlacklistController_findByPrevious",
+    name: "get_addresses_by_previous",
+    description:
+      "The direct children of one address in a propagation tree (branch isolation) - only the edges whose previousAddress matches, not the whole subtree beneath it. Same five-field edge shape, ordering, limit/offset defaults, and org-blind scope as get_addresses_by_origin.",
+    include: true,
   },
 
   // === Entity Operations ===
