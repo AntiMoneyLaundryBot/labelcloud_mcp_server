@@ -22,6 +22,8 @@ dotenv.config();
 const API_KEY = process.env.BLACKLIST_API_KEY;
 const API_URL = process.env.BLACKLIST_API_URL || "https://api-blacklist.amlbot.com";
 
+console.error(`[labelcloud-mcp-server] API base URL: ${API_URL}`);
+
 if (!API_KEY) {
   console.error("Error: BLACKLIST_API_KEY environment variable is required");
   process.exit(1);
@@ -41,6 +43,9 @@ async function apiRequest(
   body?: unknown
 ): Promise<unknown> {
   const url = `${API_URL}${path}`;
+  if (method.toUpperCase() !== "GET") {
+    console.error(`[labelcloud-mcp-server] write: ${method.toUpperCase()} ${url}`);
+  }
   const headers: Record<string, string> = {
     "X-Api-Key": API_KEY!,
     "Content-Type": "application/json",

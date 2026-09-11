@@ -239,7 +239,15 @@
                                     "subType",
                                     "reference",
                                     "fileLink",
-                                    "entityId"
+                                    "entityId",
+                                    "enableSniffer",
+                                    "originAddress",
+                                    "previousAddress",
+                                    "txHash",
+                                    "txBlockchain",
+                                    "txTimestamp",
+                                    "publicInfo",
+                                    "organization"
                                 ]
                             }
                         }
@@ -316,7 +324,15 @@
                                     "subType",
                                     "reference",
                                     "fileLink",
-                                    "entityId"
+                                    "entityId",
+                                    "enableSniffer",
+                                    "originAddress",
+                                    "previousAddress",
+                                    "txHash",
+                                    "txBlockchain",
+                                    "txTimestamp",
+                                    "publicInfo",
+                                    "organization"
                                 ]
                             }
                         }
@@ -366,7 +382,15 @@
                                     "subType",
                                     "reference",
                                     "fileLink",
-                                    "entityId"
+                                    "entityId",
+                                    "enableSniffer",
+                                    "originAddress",
+                                    "previousAddress",
+                                    "txHash",
+                                    "txBlockchain",
+                                    "txTimestamp",
+                                    "publicInfo",
+                                    "organization"
                                 ]
                             }
                         }
@@ -508,6 +532,104 @@
                 ],
                 "tags": [
                     "ApiCommon"
+                ]
+            }
+        },
+        "/v1/black-list/addresses/origin/{originAddress}": {
+            "get": {
+                "operationId": "ApiAddressBlacklistController_findByOrigin",
+                "summary": "Every address a red label propagated to from an origin address, as a complete edge list",
+                "description": "Returns every propagation edge whose originAddress matches the path param, ordered txTimestamp ASC then address ASC, sufficient to draw a trace chart with no further calls. offset is applied AFTER an exhaustive, service-side sort of the whole partition - not a cheap deep-paging primitive; cost is proportional to partition size, not to offset. Org-blind (requires READ_ADDRESS_GLOBAL): returns edges across all organizations, not just the caller's own.",
+                "parameters": [
+                    {
+                        "name": "originAddress",
+                        "required": true,
+                        "in": "path",
+                        "description": "Origin address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Max rows returned (default 10000, max 10000). offset is applied AFTER an exhaustive, service-side-sorted read of the whole origin partition - it is not a cheap deep-paging primitive, and the cost is proportional to partition size, not to offset.",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "Rows to skip after sorting by txTimestamp ASC, address ASC (default 0).",
+                        "schema": {
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddressBlacklist"
+                ]
+            }
+        },
+        "/v1/black-list/addresses/previous/{previousAddress}": {
+            "get": {
+                "operationId": "ApiAddressBlacklistController_findByPrevious",
+                "summary": "The direct children of one address in a propagation tree (branch isolation)",
+                "description": "Returns only the edges whose previousAddress matches the path param - the direct children of that node, not the whole subtree beneath it. Same ordering and offset cost note as the origin lookup. Org-blind (requires READ_ADDRESS_GLOBAL): returns edges across all organizations, not just the caller's own.",
+                "parameters": [
+                    {
+                        "name": "previousAddress",
+                        "required": true,
+                        "in": "path",
+                        "description": "Previous (parent) address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Max rows returned (default 10000, max 10000). offset is applied AFTER an exhaustive, service-side-sorted read of the whole previous-address partition - it is not a cheap deep-paging primitive, and the cost is proportional to partition size, not to offset.",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "Rows to skip after sorting by txTimestamp ASC, address ASC (default 0).",
+                        "schema": {
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "ApiAddressBlacklist"
                 ]
             }
         },
@@ -1323,6 +1445,30 @@
                     "entityId": {
                         "type": "string",
                         "description": "Entity id"
+                    },
+                    "enableSniffer": {
+                        "type": "boolean",
+                        "description": "Whether the sniffer should watch this address, independent of type/severity. Absent on write = preserve stored value; null = clear. Always a boolean on read (null reads as false)."
+                    },
+                    "originAddress": {
+                        "type": "string",
+                        "description": "Root address a propagated label originated from. Absent on write = preserve stored value; null = clear."
+                    },
+                    "previousAddress": {
+                        "type": "string",
+                        "description": "Immediate parent address this label propagated from. Part of the provenance quartet (previousAddress/txHash/txBlockchain/txTimestamp): must be all present, all explicitly null, or all absent together."
+                    },
+                    "txHash": {
+                        "type": "string",
+                        "description": "On-chain transaction hash that carried the propagation."
+                    },
+                    "txBlockchain": {
+                        "type": "string",
+                        "description": "Blockchain of the propagation transaction."
+                    },
+                    "txTimestamp": {
+                        "type": "string",
+                        "description": "On-chain transaction time (ISO-8601), NOT the label write time (createdAt)."
                     }
                 },
                 "required": [

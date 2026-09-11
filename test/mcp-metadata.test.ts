@@ -4,6 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { devServerEnv } from "./helpers/dev-endpoint.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverPath = path.join(__dirname, "..", "dist", "index.js");
@@ -13,7 +14,7 @@ describe("MCP Tool Discovery", () => {
     const transport = new StdioClientTransport({
       command: "node",
       args: [serverPath],
-      env: { ...process.env },
+      env: devServerEnv(),
     });
 
     const client = new Client({
@@ -89,7 +90,7 @@ describe("MCP Metadata Operations", () => {
     const transport = new StdioClientTransport({
       command: "node",
       args: [serverPath],
-      env: { ...process.env },
+      env: devServerEnv(),
     });
 
     const client = new Client({
@@ -139,7 +140,7 @@ describe("MCP Metadata Operations", () => {
     const transport = new StdioClientTransport({
       command: "node",
       args: [serverPath],
-      env: { ...process.env },
+      env: devServerEnv(),
     });
 
     const client = new Client({
