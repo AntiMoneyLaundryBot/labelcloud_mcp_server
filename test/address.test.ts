@@ -1,11 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
 import dotenv from "dotenv";
+import { resolvedApiUrl } from "./helpers/dev-endpoint.js";
 
 dotenv.config();
 
 const API_KEY = process.env.BLACKLIST_API_KEY;
-const API_URL = process.env.BLACKLIST_API_URL || "https://api-blacklist.amlbot.com";
+const API_URL = resolvedApiUrl;
 
 if (!API_KEY) {
   throw new Error("BLACKLIST_API_KEY environment variable is required");
