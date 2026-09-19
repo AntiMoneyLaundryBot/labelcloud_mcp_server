@@ -5,7 +5,11 @@
  * based on the tool configuration.
  */
 
-import { getIncludedToolConfigs, getToolConfigByOperationId } from "./tool-config.js";
+import {
+  getIncludedToolConfigs,
+  getIncludedToolConfigsByOperationId,
+  type ToolConfig,
+} from "./tool-config.js";
 
 /**
  * Parameter description overrides to enhance OpenAPI descriptions for LLM clarity.
@@ -100,6 +104,13 @@ export interface OperationInfo {
   pathParams: string[];
   queryParams: string[];
   bodyParams: string[];
+  /** Exposed input property name -> underlying OpenAPI param/body-property name. */
+  argAliases?: Record<string, string>;
+  /** Underlying names (from argAliases) that must be wrapped as a single-element array
+   *  when the caller supplies a scalar value through the alias. */
+  arrayAliasTargets?: string[];
+  /** Fixed values merged into every call, hidden from the exposed schema. */
+  presetArgs?: Record<string, unknown>;
 }
 
 /**
@@ -127,62 +138,99 @@ function getEnhancedDescription(
 }
 
 /**
- * Convert OpenAPI parameter to MCP property
+ * Convert OpenAPI parameter to MCP property. `exposedName`/`asSingleValue` let a
+ * ToolConfig's argAliases rename a param and, for an array-typed param aliased to
+ * a scalar (e.g. `blockchains` -> `network`), expose it as a single value.
  */
-function parameterToProperty(param: OpenAPIParameter): {
+function parameterToProperty(
+  param: OpenAPIParameter,
+  exposedName: string,
+  asSingleValue: boolean
+): {
   name: string;
   property: MCPToolInputSchema["properties"][string];
   required: boolean;
 } {
   const property: MCPToolInputSchema["properties"][string] = {
-    type: param.schema.type,
-    description: getEnhancedDescription(param.name, param.description),
+    type: asSingleValue ? "string" : param.schema.type,
+    description: getEnhancedDescription(exposedName, param.description),
   };
 
-  if (param.schema.enum) {
-    property.enum = param.schema.enum;
-  }
-
-  if (param.schema.items) {
-    property.items = param.schema.items;
+  if (asSingleValue) {
+    if (param.schema.items?.enum) {
+      property.enum = param.schema.items.enum;
+    }
+  } else {
+    if (param.schema.enum) {
+      property.enum = param.schema.enum;
+    }
+    if (param.schema.items) {
+      property.items = param.schema.items;
+    }
   }
 
   return {
-    name: param.name,
+    name: exposedName,
     property,
     required: param.required,
   };
 }
 
 /**
- * Build MCP input schema from OpenAPI operation
+ * Build MCP input schema from OpenAPI operation, applying one ToolConfig's
+ * presetArgs (hidden, fixed values), argAliases (renamed/simplified exposed
+ * properties) and omitArgs (hidden, caller can never set them).
  */
 function buildInputSchema(
   operation: OpenAPIOperation,
-  spec: OpenAPISpec
+  spec: OpenAPISpec,
+  config: ToolConfig
 ): { schema: MCPToolInputSchema; operationInfo: OperationInfo; path: string; method: string } {
   const properties: MCPToolInputSchema["properties"] = {};
   const required: string[] = [];
   const pathParams: string[] = [];
   const queryParams: string[] = [];
   const bodyParams: string[] = [];
+  const arrayAliasTargets: string[] = [];
+
+  const argAliases = config.argAliases ?? {};
+  const underlyingToExposed = new Map(
+    Object.entries(argAliases).map(([exposed, underlying]) => [underlying, exposed])
+  );
+  const hiddenParams = new Set([
+    ...(config.omitArgs ?? []),
+    ...Object.keys(config.presetArgs ?? {}),
+  ]);
 
   // Process path and query parameters
   if (operation.parameters) {
     for (const param of operation.parameters) {
       if (param.in === "header") continue; // Skip header params (like API key)
 
-      const { name, property, required: isRequired } = parameterToProperty(param);
-      properties[name] = property;
-
-      if (isRequired) {
-        required.push(name);
+      const alias = underlyingToExposed.get(param.name);
+      if (!alias && hiddenParams.has(param.name)) {
+        // Hidden: either a fixed presetArgs value or explicitly omitted -
+        // never shown to the caller.
+      } else {
+        const asSingleValue = Boolean(alias) && param.schema.type === "array";
+        if (asSingleValue) {
+          arrayAliasTargets.push(param.name);
+        }
+        const { name, property, required: isRequired } = parameterToProperty(
+          param,
+          alias ?? param.name,
+          asSingleValue
+        );
+        properties[name] = property;
+        if (isRequired) {
+          required.push(name);
+        }
       }
 
       if (param.in === "path") {
-        pathParams.push(name);
+        pathParams.push(param.name);
       } else if (param.in === "query") {
-        queryParams.push(name);
+        queryParams.push(param.name);
       }
     }
   }
@@ -198,17 +246,24 @@ function buildInputSchema(
 
     if (resolvedSchema?.properties) {
       for (const [propName, propSchema] of Object.entries(resolvedSchema.properties)) {
-        properties[propName] = {
+        const alias = underlyingToExposed.get(propName);
+        if (!alias && hiddenParams.has(propName)) {
+          bodyParams.push(propName);
+          continue;
+        }
+
+        const exposedName = alias ?? propName;
+        properties[exposedName] = {
           type: propSchema.type,
-          description: getEnhancedDescription(propName, propSchema.description),
+          description: getEnhancedDescription(exposedName, propSchema.description),
         };
 
         if (propSchema.enum) {
-          properties[propName].enum = propSchema.enum;
+          properties[exposedName].enum = propSchema.enum;
         }
 
         if (propSchema.items) {
-          properties[propName].items = propSchema.items;
+          properties[exposedName].items = propSchema.items;
         }
 
         bodyParams.push(propName);
@@ -217,8 +272,9 @@ function buildInputSchema(
       // Add required fields from body schema
       if (resolvedSchema.required) {
         for (const reqField of resolvedSchema.required) {
-          if (!required.includes(reqField)) {
-            required.push(reqField);
+          const exposedField = underlyingToExposed.get(reqField) ?? reqField;
+          if (!hiddenParams.has(reqField) && !required.includes(exposedField)) {
+            required.push(exposedField);
           }
         }
       }
@@ -238,6 +294,9 @@ function buildInputSchema(
       pathParams,
       queryParams,
       bodyParams,
+      ...(Object.keys(argAliases).length > 0 ? { argAliases } : {}),
+      ...(arrayAliasTargets.length > 0 ? { arrayAliasTargets } : {}),
+      ...(config.presetArgs ? { presetArgs: config.presetArgs } : {}),
     },
     path: "",
     method: "",
@@ -266,23 +325,24 @@ export function generateToolsFromSpec(spec: OpenAPISpec): {
     for (const { method, operation } of methods) {
       if (!operation) continue;
 
-      const config = getToolConfigByOperationId(operation.operationId);
-      if (!config || !config.include) continue;
+      const configs = getIncludedToolConfigsByOperationId(operation.operationId);
 
-      const { schema, operationInfo } = buildInputSchema(operation, spec);
+      for (const config of configs) {
+        const { schema, operationInfo } = buildInputSchema(operation, spec, config);
 
-      // Update operation info with path and method
-      operationInfo.method = method.toUpperCase();
-      operationInfo.path = path;
+        // Update operation info with path and method
+        operationInfo.method = method.toUpperCase();
+        operationInfo.path = path;
 
-      const tool: MCPTool = {
-        name: config.name,
-        description: config.description,
-        inputSchema: schema,
-      };
+        const tool: MCPTool = {
+          name: config.name,
+          description: config.description,
+          inputSchema: schema,
+        };
 
-      tools.push(tool);
-      operationMap.set(config.name, operationInfo);
+        tools.push(tool);
+        operationMap.set(config.name, operationInfo);
+      }
     }
   }
 
