@@ -91,11 +91,12 @@ export const toolConfigs: ToolConfig[] = [
         "txBlockchain",
         "txTimestamp",
       ],
+      statuses: ["ACTIVE"],
     },
     argAliases: {
       network: "blockchains",
     },
-    omitArgs: ["fields", "statuses", "entityId"],
+    omitArgs: ["fields", "entityId"],
   },
   {
     operationId: "ApiAddressBlacklistController_destroy",
