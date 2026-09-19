@@ -45,6 +45,10 @@ describe("MCP Tool Discovery", () => {
         "delete_entity",
         "get_networks",
         "get_types",
+        "set_auto_tracing",
+        "get_auto_tracer_data",
+        "get_addresses_by_origin",
+        "get_addresses_by_previous",
       ];
 
       const toolNames = result.tools.map((t) => t.name);
@@ -79,6 +83,99 @@ describe("MCP Tool Discovery", () => {
       }
 
       console.log(`\n✓ Discovered ${result.tools.length} tools`);
+    } finally {
+      await client.close();
+    }
+  });
+});
+
+describe("LabelSniffer / auto-tracer tool metadata (A3 criterion 1)", () => {
+  it("set_auto_tracing and get_auto_tracer_data are present with the binding naming triple, and get_auto_tracer_data exposes no `fields`", async () => {
+    const transport = new StdioClientTransport({
+      command: "node",
+      args: [serverPath],
+      env: devServerEnv(),
+    });
+
+    const client = new Client({
+      name: "test-client",
+      version: "1.0.0",
+    });
+
+    try {
+      await client.connect(transport);
+
+      const result = await client.listTools();
+      const toolsByName = new Map(result.tools.map((t) => [t.name, t]));
+
+      const namingStrings = ["LabelSniffer", "auto-tracer", "auto-label-propagation"];
+      const toolsRequiringNaming = [
+        "set_auto_tracing",
+        "get_auto_tracer_data",
+        "get_addresses_by_origin",
+        "get_addresses_by_previous",
+      ];
+
+      for (const toolName of toolsRequiringNaming) {
+        const tool = toolsByName.get(toolName);
+        assert.ok(tool, `Tool '${toolName}' should be present`);
+        for (const naming of namingStrings) {
+          assert.ok(
+            tool!.description.includes(naming),
+            `${toolName}'s description should contain '${naming}' verbatim`
+          );
+        }
+      }
+
+      const setAutoTracing = toolsByName.get("set_auto_tracing")!;
+      assert.deepStrictEqual(
+        new Set(Object.keys(setAutoTracing.inputSchema.properties)),
+        new Set(["address", "network", "enableSniffer"]),
+        "set_auto_tracing's input schema should be exactly {address, network, enableSniffer}"
+      );
+      assert.deepStrictEqual(
+        new Set(setAutoTracing.inputSchema.required || []),
+        new Set(["address", "network", "enableSniffer"]),
+        "set_auto_tracing should require all three of its inputs"
+      );
+
+      const getAutoTracerData = toolsByName.get("get_auto_tracer_data")!;
+      assert.deepStrictEqual(
+        new Set(Object.keys(getAutoTracerData.inputSchema.properties)),
+        new Set(["address", "network"]),
+        "get_auto_tracer_data's input schema should be exactly {address, network?}"
+      );
+      assert.ok(
+        !("fields" in getAutoTracerData.inputSchema.properties),
+        "get_auto_tracer_data must not expose a 'fields' property"
+      );
+      assert.deepStrictEqual(
+        getAutoTracerData.inputSchema.required || [],
+        ["address"],
+        "get_auto_tracer_data should only require address, network is optional"
+      );
+
+      // create_address / search_addresses must no longer steer agents to the
+      // full upsert as the only way to flip the flag.
+      const createAddress = toolsByName.get("create_address")!;
+      const searchAddresses = toolsByName.get("search_addresses")!;
+      assert.ok(
+        !createAddress.description.includes("no PATCH"),
+        "create_address should no longer say 'no PATCH route'"
+      );
+      assert.ok(
+        !searchAddresses.description.includes("no PATCH"),
+        "search_addresses should no longer say 'no PATCH equivalent'"
+      );
+      assert.ok(
+        createAddress.description.includes("set_auto_tracing"),
+        "create_address should point flag flips at set_auto_tracing"
+      );
+      assert.ok(
+        searchAddresses.description.includes("set_auto_tracing") ||
+          searchAddresses.description.includes("get_auto_tracer_data"),
+        "search_addresses should point at the new auto-tracing tools"
+      );
     } finally {
       await client.close();
     }

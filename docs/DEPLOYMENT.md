@@ -34,6 +34,15 @@ server over streamable HTTP on `127.0.0.1:9102/mcp`. Its `BLACKLIST_API_KEY` /
 (prod key + prod URL, or omitted URL to fall through to the prod default) — never from
 a `.env` file inside the repo.
 
+## Backend prerequisites per feature
+
+`set_auto_tracing` / `get_auto_tracer_data` (Peppermint #172,
+`SPEC-2026-09-18-labelcloud-mcp-auto-tracing-tools`) need **no backend change**:
+both are composites over the `GET`/`POST /v1/black-list/addresses` operations this
+server already calls. A redeploy of this MCP server (see "Deploy mechanism" above)
+is sufficient to ship them — no blacklist-service-backend release, no new route, no
+`docs/blacklist-api-endpoints.json` change.
+
 ## Running tests against dev
 
 The test suite creates and deletes real rows, so it refuses to run unless
