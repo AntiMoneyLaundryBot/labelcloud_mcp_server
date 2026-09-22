@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { Server, type Tool } from "@modelcontextprotocol/server";
+import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import dotenv from "dotenv";
-import { createRequire } from "module";
+import { createRequire } from "node:module";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   generateToolsFromSpec,
   buildPath,
@@ -16,25 +14,17 @@ import {
   type OperationInfo,
   type MCPTool,
 } from "./openapi-to-mcp.js";
-import { setAutoTracing, type SetAutoTracingArgs } from "./set-auto-tracing.js";
+import { setAutoTracing, type SetAutoTracingArgs, type ApiRequestFn } from "./set-auto-tracing.js";
 import { getToolConfigByName } from "./tool-config.js";
 import { canonicalizeToolArgs } from "./address-canonical.js";
 
-dotenv.config();
-
-const API_KEY = process.env.BLACKLIST_API_KEY;
-const API_URL = process.env.BLACKLIST_API_URL || "https://api-blacklist.amlbot.com";
-
-console.error(`[labelcloud-mcp-server] API base URL: ${API_URL}`);
-
-if (!API_KEY) {
-  console.error("Error: BLACKLIST_API_KEY environment variable is required");
-  process.exit(1);
-}
-
-// Load OpenAPI spec
 const require = createRequire(import.meta.url);
+const pkg = require("../package.json") as { version: string };
 const openApiSpec = require("../docs/blacklist-api-endpoints.json");
+
+export function resolveApiUrl(): string {
+  return process.env.BLACKLIST_API_URL || "https://api-blacklist.amlbot.com";
+}
 
 // Generate tools from spec
 const { tools: generatedTools, operationMap } = generateToolsFromSpec(openApiSpec);
@@ -74,34 +64,40 @@ const SET_AUTO_TRACING_TOOL: MCPTool = {
 
 const TOOLS: MCPTool[] = [SET_AUTO_TRACING_TOOL, ...generatedTools];
 
-// API Client
-async function apiRequest(
-  method: string,
-  path: string,
-  body?: unknown
-): Promise<unknown> {
-  const url = `${API_URL}${path}`;
-  if (method.toUpperCase() !== "GET") {
-    console.error(`[labelcloud-mcp-server] write: ${method.toUpperCase()} ${url}`);
-  }
-  const headers: Record<string, string> = {
-    "X-Api-Key": API_KEY!,
-    "Content-Type": "application/json",
+/**
+ * Builds a per-request Label Cloud API client bound to one consumer's key.
+ * Keeps today's 3-argument shape (`ApiRequestFn`, pinned at
+ * test/address-canonical.test.ts:247) — there is no 4th argument anywhere.
+ */
+export function makeApiRequest(apiKey: string | undefined, apiUrl: string): ApiRequestFn {
+  return async (method, path, body) => {
+    if (!apiKey) {
+      throw new Error("Missing Label Cloud API key");
+    }
+    const url = `${apiUrl}${path}`;
+    if (method.toUpperCase() !== "GET") {
+      console.error(`[labelcloud-mcp-server] write: ${method.toUpperCase()} ${url}`);
+    }
+    const headers: Record<string, string> = {
+      "X-Api-Key": apiKey,
+      "Content-Type": "application/json",
+      "User-Agent": `labelcloud-mcp/${pkg.version}`,
+    };
+
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API error ${response.status}: ${errorText}`);
+    }
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
   };
-
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`API error ${response.status}: ${errorText}`);
-  }
-
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
 }
 
 /**
@@ -139,6 +135,7 @@ function resolveOperationArgs(
  * Generic tool handler that uses operation info from OpenAPI spec
  */
 async function handleToolCall(
+  apiRequest: ApiRequestFn,
   toolName: string,
   args: Record<string, unknown>
 ): Promise<unknown> {
@@ -174,60 +171,78 @@ async function handleToolCall(
   return apiRequest(opInfo.method, fullPath, body);
 }
 
-// Create server
-const server = new Server(
-  {
-    name: "labelcloud-mcp-server",
-    version: "1.0.0",
-  },
-  {
-    capabilities: {
-      tools: {},
+/**
+ * Builds a fresh low-level Server bound to one apiRequest closure. One
+ * instance per stdio connection, or per HTTP request/legacy-fallback under
+ * createMcpHandler — the same factory backs both eras (2025 and 2026-07-28).
+ */
+export function createServer(apiRequest: ApiRequestFn): Server {
+  const server = new Server(
+    {
+      name: "labelcloud-mcp-server",
+      version: pkg.version,
     },
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  );
+
+  server.setRequestHandler("tools/list", async () => ({
+    tools: TOOLS as unknown as Tool[],
+  }));
+
+  server.setRequestHandler("tools/call", async (request) => {
+    const { name, arguments: args } = request.params;
+
+    try {
+      const result = await handleToolCall(apiRequest, name, (args as Record<string, unknown>) || {});
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: ${errorMessage}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  });
+
+  return server;
+}
+
+function startStdio(): void {
+  const apiKey = process.env.BLACKLIST_API_KEY;
+  if (!apiKey) {
+    console.error("Error: BLACKLIST_API_KEY environment variable is required");
+    process.exit(1);
   }
-);
-
-// Register handlers
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: TOOLS,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  try {
-    const result = await handleToolCall(name, (args as Record<string, unknown>) || {});
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error: ${errorMessage}`,
-        },
-      ],
-      isError: true,
-    };
-  }
-});
-
-// Start server
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  serveStdio(() => createServer(makeApiRequest(apiKey, resolveApiUrl())));
   console.error("AMLBot Blacklist MCP Server running on stdio");
 }
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
+async function main(): Promise<void> {
+  dotenv.config();
+  console.error(`[labelcloud-mcp-server] API base URL: ${resolveApiUrl()}`);
+  startStdio();
+}
+
+if (realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+}
