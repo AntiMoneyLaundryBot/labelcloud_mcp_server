@@ -23,6 +23,7 @@ import {
 import { setAutoTracing, type SetAutoTracingArgs, type ApiRequestFn } from "./set-auto-tracing.js";
 import { getToolConfigByName } from "./tool-config.js";
 import { canonicalizeToolArgs } from "./address-canonical.js";
+import { withAnnotations } from "./tool-annotations.js";
 
 const require = createRequire(import.meta.url);
 const pkg = require("../package.json") as { version: string };
@@ -69,6 +70,10 @@ const SET_AUTO_TRACING_TOOL: MCPTool = {
 };
 
 const TOOLS: MCPTool[] = [SET_AUTO_TRACING_TOOL, ...generatedTools];
+
+// Throws at import time if a tool is unclassified - the earliest possible
+// signal that this file wasn't updated alongside a tool add/rename.
+const LISTED_TOOLS = withAnnotations(TOOLS);
 
 /**
  * Builds a per-request Label Cloud API client bound to one consumer's key.
@@ -192,11 +197,14 @@ export function createServer(apiRequest: ApiRequestFn): Server {
       capabilities: {
         tools: {},
       },
+      cacheHints: {
+        "tools/list": { ttlMs: 3_600_000, cacheScope: "public" },
+      },
     }
   );
 
   server.setRequestHandler("tools/list", async () => ({
-    tools: TOOLS as unknown as Tool[],
+    tools: LISTED_TOOLS as unknown as Tool[],
   }));
 
   server.setRequestHandler("tools/call", async (request) => {
