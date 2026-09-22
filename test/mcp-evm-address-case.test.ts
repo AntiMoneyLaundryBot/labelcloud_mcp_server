@@ -1,23 +1,27 @@
-import { describe, it } from "node:test";
+import { describe, it, before, after } from "node:test";
 import assert from "node:assert";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { devServerEnv } from "./helpers/dev-endpoint.js";
+import { startDevServer, devTransport, type DevServerHandle } from "./helpers/dev-endpoint.js";
 
 /**
  * Dev-pinned live proof for EVM address case-insensitivity through the real tool
  * dispatch (SPEC-2026-09-21-labelcloud-mcp-evm-address-canonical, AC-1 / AC-2 / AC-3,
- * Peppermint #176). Same pattern as test/mcp-auto-tracing.test.ts: spawns dist/index.js
- * via StdioClientTransport against the dev Label Cloud (devServerEnv()).
+ * Peppermint #176). Same pattern as test/mcp-auto-tracing.test.ts: connects over the
+ * HTTP transport against the dev Label Cloud (startDevServer()/devTransport()).
  *
  * Fixture discipline: creates and deletes its own scratch entity + scratch addresses
  * (prefixed `T176…`), never the shared `T146TRACE*` / `T172*` fixtures.
  */
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const serverPath = path.join(__dirname, "..", "dist", "index.js");
+let server: DevServerHandle;
+
+before(async () => {
+  server = await startDevServer();
+});
+
+after(async () => {
+  await server.close();
+});
 
 interface AddressSnapshot {
   enableSniffer?: boolean | null;
@@ -65,11 +69,7 @@ describe("EVM address case-insensitivity, dev-pinned live (AC-1 / AC-2 / AC-3)",
     const tronAddress = `T176TRON${timestamp}`;
     const tronFlipped = `t176TRON${timestamp}`;
 
-    const transport = new StdioClientTransport({
-      command: "node",
-      args: [serverPath],
-      env: devServerEnv(),
-    });
+    const transport = devTransport(server.url);
 
     const client = new Client({ name: "test-client", version: "1.0.0" });
 

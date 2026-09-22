@@ -1,10 +1,7 @@
-import { describe, it } from "node:test";
+import { describe, it, before, after } from "node:test";
 import assert from "node:assert";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { devServerEnv } from "./helpers/dev-endpoint.js";
+import { startDevServer, devTransport, type DevServerHandle } from "./helpers/dev-endpoint.js";
 
 /**
  * Dev-pinned round-trip for `set_auto_tracing` / `get_auto_tracer_data`
@@ -15,8 +12,15 @@ import { devServerEnv } from "./helpers/dev-endpoint.js";
  * scratch entity, so it never mutates fixtures other suites depend on.
  */
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const serverPath = path.join(__dirname, "..", "dist", "index.js");
+let server: DevServerHandle;
+
+before(async () => {
+  server = await startDevServer();
+});
+
+after(async () => {
+  await server.close();
+});
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -90,11 +94,7 @@ describe("set_auto_tracing / get_auto_tracer_data (A3 criteria 2 & 3, dev-pinned
     const testAddress = `T172AUTOTRACE${timestamp}`;
     const network = "tron";
 
-    const transport = new StdioClientTransport({
-      command: "node",
-      args: [serverPath],
-      env: devServerEnv(),
-    });
+    const transport = devTransport(server.url);
 
     const client = new Client({ name: "test-client", version: "1.0.0" });
 
