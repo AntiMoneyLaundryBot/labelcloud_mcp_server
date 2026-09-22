@@ -43,6 +43,12 @@ server already calls. A redeploy of this MCP server (see "Deploy mechanism" abov
 is sufficient to ship them — no blacklist-service-backend release, no new route, no
 `docs/blacklist-api-endpoints.json` change.
 
+`get_auto_tracer_data` / `set_auto_tracing` EVM address canonicalization (Peppermint #176,
+`SPEC-2026-09-21-labelcloud-mcp-evm-address-canonical`) needs **no backend change** either:
+it lowercases EVM-shaped input client-side, before the existing calls, working around a
+backend defect (filed separately) rather than depending on a fix for it. A redeploy alone
+ships it.
+
 ## Running tests against dev
 
 The test suite creates and deletes real rows, so it refuses to run unless

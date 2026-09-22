@@ -18,6 +18,7 @@ import {
 } from "./openapi-to-mcp.js";
 import { setAutoTracing, type SetAutoTracingArgs } from "./set-auto-tracing.js";
 import { getToolConfigByName } from "./tool-config.js";
+import { canonicalizeToolArgs } from "./address-canonical.js";
 
 dotenv.config();
 
@@ -150,7 +151,7 @@ async function handleToolCall(
     throw new Error(`Unknown tool: ${toolName}`);
   }
 
-  const resolvedArgs = resolveOperationArgs(opInfo, args);
+  const resolvedArgs = resolveOperationArgs(opInfo, canonicalizeToolArgs(toolName, args));
 
   // Build path with path parameters
   const pathParams: Record<string, string> = {};
