@@ -1,0 +1,24 @@
+# Reference compose file for labelcloud-mcp. Jenkins deploys the copies at
+# /root/docker-compose/labelcloud-mcp/docker-compose.yaml on each host — copy
+# this file there once and adjust the two "# prod:" lines for the prod host.
+#
+# The server holds NO Label Cloud key and refuses to start if one is
+# provided via env. Each consumer sends their own (Authorization: Bearer
+# <key>, or X-Api-Key); the MCP server never holds one of its own.
+services:
+  labelcloud-mcp:
+    image: registry.digitalocean.com/machekhinasked/labelcloud-mcp:dev # prod: :prod
+    container_name: labelcloud-mcp
+    restart: unless-stopped
+    ports:
+      - "9180:3000"
+    environment:
+      BLACKLIST_API_URL: https://api-blacklist.amlbot.rocks # prod: https://api-blacklist.amlbot.com
+      # Hostnames only — MCP_ALLOWED_HOSTS strips any ":port" before matching.
+      # The FQDN can be appended later with no rebuild.
+      MCP_ALLOWED_HOSTS: 94.130.51.230 # prod: 162.55.129.53
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

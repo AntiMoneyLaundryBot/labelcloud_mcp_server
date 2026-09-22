@@ -1,21 +1,21 @@
-import { describe, it } from "node:test";
+import { describe, it, before, after } from "node:test";
 import assert from "node:assert";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { devServerEnv } from "./helpers/dev-endpoint.js";
+import { startDevServer, devTransport, type DevServerHandle } from "./helpers/dev-endpoint.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const serverPath = path.join(__dirname, "..", "dist", "index.js");
+let server: DevServerHandle;
+
+before(async () => {
+  server = await startDevServer();
+});
+
+after(async () => {
+  await server.close();
+});
 
 describe("MCP Tool Discovery", () => {
   it("should list all available tools via listTools()", async () => {
-    const transport = new StdioClientTransport({
-      command: "node",
-      args: [serverPath],
-      env: devServerEnv(),
-    });
+    const transport = devTransport(server.url);
 
     const client = new Client({
       name: "test-client",
@@ -91,11 +91,7 @@ describe("MCP Tool Discovery", () => {
 
 describe("LabelSniffer / auto-tracer tool metadata (A3 criterion 1)", () => {
   it("set_auto_tracing and get_auto_tracer_data are present with the binding naming triple, and get_auto_tracer_data exposes no `fields`", async () => {
-    const transport = new StdioClientTransport({
-      command: "node",
-      args: [serverPath],
-      env: devServerEnv(),
-    });
+    const transport = devTransport(server.url);
 
     const client = new Client({
       name: "test-client",
@@ -184,11 +180,7 @@ describe("LabelSniffer / auto-tracer tool metadata (A3 criterion 1)", () => {
 
 describe("MCP Metadata Operations", () => {
   it("should get available networks via get_networks", async () => {
-    const transport = new StdioClientTransport({
-      command: "node",
-      args: [serverPath],
-      env: devServerEnv(),
-    });
+    const transport = devTransport(server.url);
 
     const client = new Client({
       name: "test-client",
@@ -234,11 +226,7 @@ describe("MCP Metadata Operations", () => {
   });
 
   it("should get available types via get_types", async () => {
-    const transport = new StdioClientTransport({
-      command: "node",
-      args: [serverPath],
-      env: devServerEnv(),
-    });
+    const transport = devTransport(server.url);
 
     const client = new Client({
       name: "test-client",

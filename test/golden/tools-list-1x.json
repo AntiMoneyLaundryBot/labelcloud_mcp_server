@@ -1,0 +1,695 @@
+[
+  {
+    "name": "set_auto_tracing",
+    "description": "Enable or disable LabelSniffer (a.k.a. auto-tracer, a.k.a. auto-label-propagation) on ONE existing blockchain address by flipping its enableSniffer flag, without a full-record upsert. Reads the address back first (every writable field, ACTIVE status only) and refuses if it does not exist or is DELETED - this tool never creates a row and never reactivates a DELETED one. Writes back the exact same record with only enableSniffer changed: entityId, type, subType, description, reference and isPublicInfo are preserved verbatim, and the provenance fields (originAddress, previousAddress, txHash, txBlockchain, txTimestamp) are left completely untouched. Returns {before, after} snapshots of the address. Use this instead of create_address to flip the flag.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Blockchain address hash (e.g., '0x1234...' for Ethereum, 'T...' for Tron). Not an entity name."
+        },
+        "network": {
+          "type": "string",
+          "description": "Address blockchain (must match the address's existing network exactly)."
+        },
+        "enableSniffer": {
+          "type": "boolean",
+          "description": "The new value for the enableSniffer flag."
+        }
+      },
+      "required": [
+        "address",
+        "network",
+        "enableSniffer"
+      ]
+    }
+  },
+  {
+    "name": "create_address",
+    "description": "Add a blockchain address (e.g., '0x...' for Ethereum, 'T...' for Tron) to the Label Cloud, or upsert an existing one. Optional entityId must be a UUID from search_entities, not an entity name. THIS IS A FULL UPSERT: every call replaces the whole record. To flip ONLY the enableSniffer flag (LabelSniffer (a.k.a. auto-tracer, a.k.a. auto-label-propagation)) on an address that already exists, use set_auto_tracing instead - it reads the record back and preserves every other field for you. To change any other single field on an existing address, you MUST first call search_addresses on it with fields including entityId, description, type, subType, reference, enableSniffer, originAddress, previousAddress, txHash, txBlockchain, txTimestamp, then resend this call with every one of those values carried over unchanged plus only your intended change. Never omit entityId on an existing address that has one: an omitted/absent entityId is written as a literal null, which detaches the address from its entity and forces the address to become publicly visible in the public blacklist. `type` is required and effectively controls severity on the fast path - never guess it; always use the exact value read back from search_addresses, not a paraphrase.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Blockchain address hash (e.g., '0x1234...' for Ethereum, 'T...' for Tron). Not an entity name."
+        },
+        "network": {
+          "type": "string",
+          "description": "Address blockchain",
+          "enum": [
+            "unknown",
+            "tron",
+            "ethereum",
+            "bitcoin",
+            "solana",
+            "evmos",
+            "cosmos",
+            "polygon",
+            "arbitrum",
+            "avalanche",
+            "cronos",
+            "optimism",
+            "evm_eoa",
+            "sui",
+            "aptos",
+            "doge",
+            "bsc",
+            "ton",
+            "zksync",
+            "multiversx",
+            "ripple",
+            "tao",
+            "polkadot",
+            "ronin",
+            "cardano",
+            "confidence",
+            "monero",
+            "centrifuge",
+            "acala",
+            "algorand",
+            "zcash",
+            "dash",
+            "litecoin",
+            "blast",
+            "xrp_ledger",
+            "near",
+            "terra_classic",
+            "manta",
+            "moonbeam",
+            "base",
+            "bitcoin_cash",
+            "scroll",
+            "eos",
+            "kaspa",
+            "theta",
+            "internet_computer",
+            "sei",
+            "thor_chain",
+            "stellar",
+            "injective",
+            "zilliqa",
+            "hedera",
+            "astar",
+            "bittensor",
+            "ethereum_classic",
+            "kava",
+            "kusama",
+            "tezos",
+            "filecoin",
+            "enjin",
+            "neuroweb",
+            "krest",
+            "hydration",
+            "bts",
+            "waves"
+          ]
+        },
+        "isPublicInfo": {
+          "type": "boolean",
+          "description": "Whether address is public or not"
+        },
+        "description": {
+          "type": "string",
+          "description": "Address description"
+        },
+        "type": {
+          "type": "string",
+          "description": "Address type"
+        },
+        "subType": {
+          "type": "string",
+          "description": "Address sub type"
+        },
+        "reference": {
+          "type": "string",
+          "description": "Address reference, e.g. explorer url"
+        },
+        "entityId": {
+          "type": "string",
+          "description": "Entity UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Get this from search_entities response 'id' field, not the entity name."
+        },
+        "enableSniffer": {
+          "type": "boolean",
+          "description": "Whether the sniffer should watch this address, independent of type/severity. Absent on write = preserve stored value; null = clear. Always a boolean on read (null reads as false)."
+        },
+        "originAddress": {
+          "type": "string",
+          "description": "Root address a propagated label originated from. Absent on write = preserve stored value; null = clear."
+        },
+        "previousAddress": {
+          "type": "string",
+          "description": "Immediate parent address this label propagated from. Part of the provenance quartet (previousAddress/txHash/txBlockchain/txTimestamp): must be all present, all explicitly null, or all absent together."
+        },
+        "txHash": {
+          "type": "string",
+          "description": "On-chain transaction hash that carried the propagation."
+        },
+        "txBlockchain": {
+          "type": "string",
+          "description": "Blockchain of the propagation transaction."
+        },
+        "txTimestamp": {
+          "type": "string",
+          "description": "On-chain transaction time (ISO-8601), NOT the label write time (createdAt)."
+        }
+      },
+      "required": [
+        "address",
+        "network",
+        "isPublicInfo"
+      ]
+    }
+  },
+  {
+    "name": "search_addresses",
+    "description": "Search for a specific blockchain address by its hash (e.g., '0x...' or 'T...'). Cannot search by entity name - use search_entities for that. Pass fields (e.g. enableSniffer, originAddress, previousAddress, txHash, txBlockchain, txTimestamp, publicInfo, organization, entityId, description, type, subType, reference) to read back the full record - required before using create_address to upsert any other field on an existing address, since that call is a full-record write. To read just the LabelSniffer (a.k.a. auto-tracer, a.k.a. auto-label-propagation) flag and its provenance, use get_auto_tracer_data instead. To flip the flag alone, use set_auto_tracing instead.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Blockchain address hash (e.g., '0x1234...' for Ethereum, 'T...' for Tron). Not an entity name."
+        },
+        "blockchains": {
+          "type": "array",
+          "description": "Blockchain of the address",
+          "items": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "tron",
+              "ethereum",
+              "bitcoin",
+              "solana",
+              "evmos",
+              "cosmos",
+              "polygon",
+              "arbitrum",
+              "avalanche",
+              "cronos",
+              "optimism",
+              "evm_eoa",
+              "sui",
+              "aptos",
+              "doge",
+              "bsc",
+              "ton",
+              "zksync",
+              "multiversx",
+              "ripple",
+              "tao",
+              "polkadot",
+              "ronin",
+              "cardano",
+              "confidence",
+              "monero",
+              "centrifuge",
+              "acala",
+              "algorand",
+              "zcash",
+              "dash",
+              "litecoin",
+              "blast",
+              "xrp_ledger",
+              "near",
+              "terra_classic",
+              "manta",
+              "moonbeam",
+              "base",
+              "bitcoin_cash",
+              "scroll",
+              "eos",
+              "kaspa",
+              "theta",
+              "internet_computer",
+              "sei",
+              "thor_chain",
+              "stellar",
+              "injective",
+              "zilliqa",
+              "hedera",
+              "astar",
+              "bittensor",
+              "ethereum_classic",
+              "kava",
+              "kusama",
+              "tezos",
+              "filecoin",
+              "enjin",
+              "neuroweb",
+              "krest",
+              "hydration",
+              "bts",
+              "waves"
+            ]
+          }
+        },
+        "statuses": {
+          "type": "array",
+          "description": "Status of the address",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DELETED"
+            ]
+          }
+        },
+        "entityId": {
+          "type": "string",
+          "description": "Entity UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Get this from search_entities response 'id' field, not the entity name."
+        },
+        "fields": {
+          "type": "array",
+          "description": "Address fields, default: address, network, description, type, subType, reference, fileLink",
+          "items": {
+            "type": "string",
+            "enum": [
+              "address",
+              "network",
+              "description",
+              "type",
+              "subType",
+              "reference",
+              "fileLink",
+              "entityId",
+              "enableSniffer",
+              "originAddress",
+              "previousAddress",
+              "txHash",
+              "txBlockchain",
+              "txTimestamp",
+              "publicInfo",
+              "organization"
+            ]
+          }
+        }
+      },
+      "required": [
+        "address"
+      ]
+    }
+  },
+  {
+    "name": "get_auto_tracer_data",
+    "description": "Read LabelSniffer (a.k.a. auto-tracer, a.k.a. auto-label-propagation) data for one address: the enableSniffer flag plus its five provenance fields (originAddress, previousAddress, txHash, txBlockchain, txTimestamp) - without naming any `fields` yourself. Input is just address and an optional network. Use search_addresses instead if you need other fields such as description, type, subType, reference or entityId.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Blockchain address hash (e.g., '0x1234...' for Ethereum, 'T...' for Tron). Not an entity name."
+        },
+        "network": {
+          "type": "string",
+          "description": "Blockchain of the address",
+          "enum": [
+            "unknown",
+            "tron",
+            "ethereum",
+            "bitcoin",
+            "solana",
+            "evmos",
+            "cosmos",
+            "polygon",
+            "arbitrum",
+            "avalanche",
+            "cronos",
+            "optimism",
+            "evm_eoa",
+            "sui",
+            "aptos",
+            "doge",
+            "bsc",
+            "ton",
+            "zksync",
+            "multiversx",
+            "ripple",
+            "tao",
+            "polkadot",
+            "ronin",
+            "cardano",
+            "confidence",
+            "monero",
+            "centrifuge",
+            "acala",
+            "algorand",
+            "zcash",
+            "dash",
+            "litecoin",
+            "blast",
+            "xrp_ledger",
+            "near",
+            "terra_classic",
+            "manta",
+            "moonbeam",
+            "base",
+            "bitcoin_cash",
+            "scroll",
+            "eos",
+            "kaspa",
+            "theta",
+            "internet_computer",
+            "sei",
+            "thor_chain",
+            "stellar",
+            "injective",
+            "zilliqa",
+            "hedera",
+            "astar",
+            "bittensor",
+            "ethereum_classic",
+            "kava",
+            "kusama",
+            "tezos",
+            "filecoin",
+            "enjin",
+            "neuroweb",
+            "krest",
+            "hydration",
+            "bts",
+            "waves"
+          ]
+        }
+      },
+      "required": [
+        "address"
+      ]
+    }
+  },
+  {
+    "name": "delete_address",
+    "description": "Remove an address from the AMLBot Label Cloud",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Blockchain address hash (e.g., '0x1234...' for Ethereum, 'T...' for Tron). Not an entity name."
+        },
+        "network": {
+          "type": "string",
+          "description": "Address network",
+          "enum": [
+            "unknown",
+            "tron",
+            "ethereum",
+            "bitcoin",
+            "solana",
+            "evmos",
+            "cosmos",
+            "polygon",
+            "arbitrum",
+            "avalanche",
+            "cronos",
+            "optimism",
+            "evm_eoa",
+            "sui",
+            "aptos",
+            "doge",
+            "bsc",
+            "ton",
+            "zksync",
+            "multiversx",
+            "ripple",
+            "tao",
+            "polkadot",
+            "ronin",
+            "cardano",
+            "confidence",
+            "monero",
+            "centrifuge",
+            "acala",
+            "algorand",
+            "zcash",
+            "dash",
+            "litecoin",
+            "blast",
+            "xrp_ledger",
+            "near",
+            "terra_classic",
+            "manta",
+            "moonbeam",
+            "base",
+            "bitcoin_cash",
+            "scroll",
+            "eos",
+            "kaspa",
+            "theta",
+            "internet_computer",
+            "sei",
+            "thor_chain",
+            "stellar",
+            "injective",
+            "zilliqa",
+            "hedera",
+            "astar",
+            "bittensor",
+            "ethereum_classic",
+            "kava",
+            "kusama",
+            "tezos",
+            "filecoin",
+            "enjin",
+            "neuroweb",
+            "krest",
+            "hydration",
+            "bts",
+            "waves"
+          ]
+        }
+      },
+      "required": [
+        "address"
+      ]
+    }
+  },
+  {
+    "name": "get_entity_addresses",
+    "description": "Get all blockchain addresses associated with an entity. Requires entityId (UUID from search_entities), not the entity name.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entityId": {
+          "type": "string",
+          "description": "Entity UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Get this from search_entities response 'id' field, not the entity name."
+        },
+        "fields": {
+          "type": "array",
+          "description": "Address fields, default: address, network, description, type, subType, reference, fileLink",
+          "items": {
+            "type": "string",
+            "enum": [
+              "address",
+              "network",
+              "description",
+              "type",
+              "subType",
+              "reference",
+              "fileLink",
+              "entityId",
+              "enableSniffer",
+              "originAddress",
+              "previousAddress",
+              "txHash",
+              "txBlockchain",
+              "txTimestamp",
+              "publicInfo",
+              "organization"
+            ]
+          }
+        }
+      },
+      "required": [
+        "entityId"
+      ]
+    }
+  },
+  {
+    "name": "get_addresses_by_origin",
+    "description": "Every address a red label propagated to from an origin address, as a complete edge list - every row where originAddress matches, ordered txTimestamp ASC then address ASC. Each edge carries address, previousAddress, txHash, txBlockchain, txTimestamp. Org-blind: returns edges across all organizations, not just the caller's own. limit defaults to 10000 (max 10000), offset defaults to 0; offset is applied after an exhaustive, service-side sort of the whole partition, so cost scales with partition size, not with offset. Part of LabelSniffer (a.k.a. auto-tracer, a.k.a. auto-label-propagation).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "originAddress": {
+          "type": "string",
+          "description": "Origin address hash"
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max rows returned (default 10000, max 10000). offset is applied AFTER an exhaustive, service-side-sorted read of the whole origin partition - it is not a cheap deep-paging primitive, and the cost is proportional to partition size, not to offset."
+        },
+        "offset": {
+          "type": "number",
+          "description": "Rows to skip after sorting by txTimestamp ASC, address ASC (default 0)."
+        }
+      },
+      "required": [
+        "originAddress"
+      ]
+    }
+  },
+  {
+    "name": "get_addresses_by_previous",
+    "description": "The direct children of one address in a propagation tree (branch isolation) - only the edges whose previousAddress matches, not the whole subtree beneath it. Same five-field edge shape, ordering, limit/offset defaults, and org-blind scope as get_addresses_by_origin. Part of LabelSniffer (a.k.a. auto-tracer, a.k.a. auto-label-propagation).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "previousAddress": {
+          "type": "string",
+          "description": "Previous (parent) address hash"
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max rows returned (default 10000, max 10000). offset is applied AFTER an exhaustive, service-side-sorted read of the whole previous-address partition - it is not a cheap deep-paging primitive, and the cost is proportional to partition size, not to offset."
+        },
+        "offset": {
+          "type": "number",
+          "description": "Rows to skip after sorting by txTimestamp ASC, address ASC (default 0)."
+        }
+      },
+      "required": [
+        "previousAddress"
+      ]
+    }
+  },
+  {
+    "name": "create_entity",
+    "description": "Create a new entity in the AMLBot Label Cloud. Returns the created entity including its 'id' (UUID) for use in other operations.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Entity name"
+        },
+        "isPublicInfo": {
+          "type": "boolean",
+          "description": "Whether entity is public or not"
+        },
+        "description": {
+          "type": "string",
+          "description": "Entity description"
+        },
+        "type": {
+          "type": "string",
+          "description": "Entity type"
+        },
+        "subType": {
+          "type": "string",
+          "description": "Entity sub type"
+        },
+        "reference": {
+          "type": "string",
+          "description": "Entity reference, e.g. explorer url"
+        }
+      },
+      "required": [
+        "name",
+        "isPublicInfo"
+      ]
+    }
+  },
+  {
+    "name": "search_entities",
+    "description": "Search for entities by name. Returns entity details including the 'id' field (UUID) needed for other entity operations like get_entity_addresses.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Entity name"
+        },
+        "type": {
+          "type": "string",
+          "description": "Entity type"
+        },
+        "subType": {
+          "type": "string",
+          "description": "Entity sub type"
+        },
+        "statuses": {
+          "type": "array",
+          "description": "Status of the entity",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DELETED"
+            ]
+          }
+        },
+        "fields": {
+          "type": "array",
+          "description": "Entity fields, default: description, type, subType, reference",
+          "items": {
+            "type": "string",
+            "enum": [
+              "name",
+              "publicInfo",
+              "description",
+              "type",
+              "subType",
+              "reference"
+            ]
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    }
+  },
+  {
+    "name": "get_entity",
+    "description": "Get entity details by UUID. Use search_entities first to find the entityId if you only have the name.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entityId": {
+          "type": "string",
+          "description": "Entity UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Get this from search_entities response 'id' field, not the entity name."
+        }
+      },
+      "required": [
+        "entityId"
+      ]
+    }
+  },
+  {
+    "name": "delete_entity",
+    "description": "Delete an entity by UUID. Use search_entities first to find the entityId if you only have the name.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entityId": {
+          "type": "string",
+          "description": "Entity UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Get this from search_entities response 'id' field, not the entity name."
+        }
+      },
+      "required": [
+        "entityId"
+      ]
+    }
+  },
+  {
+    "name": "get_networks",
+    "description": "Get list of supported blockchain networks",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  },
+  {
+    "name": "get_types",
+    "description": "Get list of available address types",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  }
+]
