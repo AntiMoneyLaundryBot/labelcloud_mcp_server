@@ -329,6 +329,12 @@ export async function startHttpServer(
         "Label Cloud key - each consumer sends their own (Authorization: Bearer <key>). Unset BLACKLIST_API_KEY."
     );
   }
+  if (!process.env.BLACKLIST_API_URL) {
+    throw new Error(
+      "Refusing to start in HTTP mode: BLACKLIST_API_URL is not set. HTTP mode must not silently fall " +
+        "back to the prod Label Cloud API - set BLACKLIST_API_URL explicitly."
+    );
+  }
 
   const host = options.host ?? process.env.MCP_HOST ?? "127.0.0.1";
   const port = options.port ?? Number(process.env.MCP_PORT ?? 3000);
@@ -344,60 +350,75 @@ export async function startHttpServer(
   const handleNodeRequest = toNodeHandler(mcp);
 
   const httpServer = createNodeHttpServer(async (req, res) => {
-    const pathname = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`).pathname;
-    if (pathname !== "/mcp") {
-      sendJson(res, 404, {}, { error: "Not found" });
-      return;
-    }
-    if (!hostOk(req, res)) return;
-    if (!originOk(req, res)) return;
-
-    if (req.method !== "POST") {
-      res.writeHead(405, { Allow: "POST" }).end();
-      return;
-    }
-
-    const bodyResult = await readRequestBody(req);
-    if (!bodyResult.ok) {
-      res.writeHead(bodyResult.status).end();
-      return;
-    }
-
-    let body: unknown;
     try {
-      body = bodyResult.text ? JSON.parse(bodyResult.text) : undefined;
-    } catch {
-      sendJson(res, 400, {}, { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } });
-      return;
-    }
+      // Pathname is derived from req.url alone - never from the Host header,
+      // and never via `new URL(...)`, which throws on a malformed Host and
+      // would otherwise crash the process before hostOk() gets to reject it.
+      const pathname = (req.url ?? "/").split("?")[0];
+      if (pathname !== "/mcp") {
+        sendJson(res, 404, {}, { error: "Not found" });
+        return;
+      }
+      if (!hostOk(req, res)) return;
+      if (!originOk(req, res)) return;
 
-    const key = extractApiKey(req.headers);
-    if (!key && requiresKey(body)) {
-      sendJson(
-        res,
-        401,
-        { "WWW-Authenticate": 'Bearer realm="labelcloud-mcp"' },
-        {
-          jsonrpc: "2.0",
-          id: null,
-          error: {
-            code: -32001,
-            message: "Missing Label Cloud API key: send Authorization: Bearer <key>",
-          },
-        }
+      if (req.method !== "POST") {
+        res.writeHead(405, { Allow: "POST" }).end();
+        return;
+      }
+
+      const bodyResult = await readRequestBody(req);
+      if (!bodyResult.ok) {
+        res.writeHead(bodyResult.status).end();
+        return;
+      }
+
+      let body: unknown;
+      try {
+        body = bodyResult.text ? JSON.parse(bodyResult.text) : undefined;
+      } catch {
+        sendJson(res, 400, {}, { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } });
+        return;
+      }
+
+      const key = extractApiKey(req.headers);
+      if (!key && requiresKey(body)) {
+        sendJson(
+          res,
+          401,
+          { "WWW-Authenticate": 'Bearer realm="labelcloud-mcp"' },
+          {
+            jsonrpc: "2.0",
+            id: null,
+            error: {
+              code: -32001,
+              message: "Missing Label Cloud API key: send Authorization: Bearer <key>",
+            },
+          }
+        );
+        return;
+      }
+
+      if (key) {
+        (req as IncomingMessage & { auth?: AuthInfo }).auth = {
+          token: key,
+          clientId: "labelcloud-consumer",
+          scopes: [],
+        };
+      }
+
+      await handleNodeRequest(req, res, body);
+    } catch (error) {
+      console.error(
+        "[labelcloud-mcp-server] unhandled request error:",
+        error instanceof Error ? error.message : error
       );
-      return;
+      if (!res.headersSent) {
+        sendJson(res, 500, {}, { jsonrpc: "2.0", id: null, error: { code: -32603, message: "Internal error" } });
+      } else if (!res.writableEnded) {
+        res.end();
+      }
     }
-
-    if (key) {
-      (req as IncomingMessage & { auth?: AuthInfo }).auth = {
-        token: key,
-        clientId: "labelcloud-consumer",
-        scopes: [],
-      };
-    }
-
-    await handleNodeRequest(req, res, body);
   });
 
   await new Promise<void>((resolve, reject) => {

@@ -49,7 +49,7 @@ describe("AC-5: fail-closed HTTP transport on a stray BLACKLIST_API_KEY", () => 
   });
 
   it("control: without the key, the server starts and a GET /mcp returns 405", async () => {
-    const env: NodeJS.ProcessEnv = { ...process.env, MCP_PORT: "0" };
+    const env: NodeJS.ProcessEnv = { ...process.env, MCP_PORT: "0", BLACKLIST_API_URL: "http://127.0.0.1:1" };
     delete env.BLACKLIST_API_KEY;
 
     const child = spawn(process.execPath, [distEntry, "--http"], {
@@ -82,5 +82,16 @@ describe("AC-5: fail-closed HTTP transport on a stray BLACKLIST_API_KEY", () => 
     } finally {
       child.kill();
     }
+  });
+});
+
+describe("N-1: fail-closed HTTP transport without BLACKLIST_API_URL", () => {
+  it("exits non-zero and names BLACKLIST_API_URL when it is unset", async () => {
+    const env: NodeJS.ProcessEnv = { ...process.env, MCP_PORT: "0" };
+    delete env.BLACKLIST_API_KEY;
+    delete env.BLACKLIST_API_URL;
+    const { code, stderr } = await runToExit(env);
+    assert.notStrictEqual(code, 0, "the server must not start in HTTP mode without BLACKLIST_API_URL");
+    assert.match(stderr, /BLACKLIST_API_URL/);
   });
 });
