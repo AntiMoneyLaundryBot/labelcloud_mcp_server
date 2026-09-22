@@ -8,6 +8,8 @@
  * §"A3". No backend route: both calls are operations this server already exposes.
  */
 
+import { canonicalizeAddress } from "./address-canonical.js";
+
 const ADDRESSES_PATH = "/v1/black-list/addresses";
 
 /** Every writable field, requested explicitly so the composite can merge the
@@ -169,7 +171,10 @@ export async function setAutoTracing(
   apiRequest: ApiRequestFn,
   args: SetAutoTracingArgs
 ): Promise<{ before: AddressRow; after: AddressRow }> {
-  const { address, network, enableSniffer } = args;
+  const { network, enableSniffer } = args;
+  // #176: canonicalise ONCE, here. Everything downstream - the byte-exact compare at
+  // line 107, the dedupe key, the >1-rows refusal - stays byte-exact on this value (C-6).
+  const address = canonicalizeAddress(args.address, network);
 
   const before = await fetchSingleActiveRow(apiRequest, address, network);
 
