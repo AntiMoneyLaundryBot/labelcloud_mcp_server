@@ -68,7 +68,29 @@ npm install
 npm run build
 ```
 
-## Configuration
+## Usage
+
+### Remote (HTTP) — primary
+
+As of v2.0.0 the server ships as a Streamable HTTP service (MCP protocol `2026-07-28`, with
+a 2025-11-25 legacy fallback for older clients), deployed on `dev` and `prod` instances — see
+`docs/DEPLOYMENT.md` for the host/port table, environment variables, and probes. The **HTTP
+server never holds a Label Cloud API key**; it refuses to start if one is present in its
+environment. Instead, each consumer sends its own key per-request:
+
+```bash
+claude mcp add --transport http labelcloud http://<host>:9180/mcp \
+  --header "Authorization: Bearer <your Label Cloud API key>"
+```
+
+(`X-Api-Key: <key>` also works, as a fallback if `Authorization` isn't set.) Point at the dev
+instance (`94.130.51.230:9180`) or the prod instance (`162.55.129.53:9180`) depending which
+Label Cloud environment (`.rocks` / `.com`) you want to query.
+
+### Local (stdio)
+
+For local development, or a single-consumer deployment where a server-held key is
+acceptable, the server still runs over stdio.
 
 Create a `.env` file based on `.env.example`:
 
@@ -83,9 +105,7 @@ BLACKLIST_API_KEY=your_api_key_here
 BLACKLIST_API_URL=https://api-blacklist.amlbot.com
 ```
 
-## Usage
-
-### Running the Server
+Then run it:
 
 ```bash
 npm start
@@ -93,7 +113,7 @@ npm start
 
 The server communicates via stdio, making it compatible with MCP clients.
 
-### Claude Desktop Integration
+#### Claude Desktop Integration
 
 Add the server to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
 
@@ -117,7 +137,7 @@ Add the server to your Claude Desktop configuration (`~/Library/Application Supp
 # Watch mode for development
 npm run dev
 
-# Run tests
+# Run tests (see docs/DEPLOYMENT.md for the dev-pinned live suites and MCP_TEST_URL)
 npm test
 ```
 
