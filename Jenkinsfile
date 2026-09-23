@@ -26,7 +26,8 @@ pipeline {
     }
 
     parameters {
-        choice(name: 'PARAMETER', choices: ['', 'run-dev'], description: 'Use run-dev for manual dev rebuild; leave empty otherwise')
+        choice(name: 'PARAMETER', choices: ['', 'run-dev', 'run-prod'], description: 'Use run-dev for manual dev rebuild, run-prod for manual prod deploy; leave empty otherwise')
+        string(name: 'TAG', defaultValue: '', description: 'Manual run-prod only: the vX.Y.Z release tag to build and deploy')
     }
 
     environment {
@@ -37,7 +38,7 @@ pipeline {
         DOCKER_REGISTRY_CREDENTIAL = "admin-do-registry"
         DOCKER_BUILDKIT = "1"
         IS_GENERIC_TRIGGER = false
-        GIT_TAG = "${tag}"
+        GIT_TAG = "${PARAMETER == 'run-prod' ? TAG.trim() : tag}"
         SHORT_COMMIT_HASH = ''
         GITHUB_EVENT_ACTION = "${action}"
         GITHUB_PR_MERGED = "${merged}"
@@ -90,7 +91,9 @@ pipeline {
             when {
                 expression {
                     return env.JOB_NAME.startsWith('Prod-App/') &&
-                           GIT_TAG ==~ /^v\d+\.\d+\.\d+(-rc\.\d+)?$/
+                           (GIT_TAG ==~ /^v\d+\.\d+\.\d+(-rc\.\d+)?$/) &&
+                           (PARAMETER == 'run-prod' ||
+                            (GITHUB_EVENT_ACTION == 'published' && GITHUB_REPO_NAME == REPO_NAME))
                 }
             }
             steps {
@@ -112,9 +115,9 @@ pipeline {
             when {
                 expression {
                     return env.JOB_NAME.startsWith('Prod-App/') &&
-                           GITHUB_EVENT_ACTION == 'published' &&
-                           GITHUB_REPO_NAME == REPO_NAME &&
-                           GIT_TAG ==~ /^v\d+\.\d+\.\d+(-rc\.\d+)?$/
+                           (GIT_TAG ==~ /^v\d+\.\d+\.\d+(-rc\.\d+)?$/) &&
+                           (PARAMETER == 'run-prod' ||
+                            (GITHUB_EVENT_ACTION == 'published' && GITHUB_REPO_NAME == REPO_NAME))
                 }
             }
             steps {
@@ -133,9 +136,9 @@ pipeline {
             when {
                 expression {
                     return env.JOB_NAME.startsWith('Prod-App/') &&
-                           GITHUB_EVENT_ACTION == 'published' &&
-                           GITHUB_REPO_NAME == REPO_NAME &&
-                           GIT_TAG ==~ /^v\d+\.\d+\.\d+(-rc\.\d+)?$/
+                           (GIT_TAG ==~ /^v\d+\.\d+\.\d+(-rc\.\d+)?$/) &&
+                           (PARAMETER == 'run-prod' ||
+                            (GITHUB_EVENT_ACTION == 'published' && GITHUB_REPO_NAME == REPO_NAME))
                 }
             }
             steps {
@@ -153,9 +156,9 @@ pipeline {
             when {
                 expression {
                     return env.JOB_NAME.startsWith('Prod-App/') &&
-                           GITHUB_EVENT_ACTION == 'published' &&
-                           GITHUB_REPO_NAME == REPO_NAME &&
-                           GIT_TAG ==~ /^v\d+\.\d+\.\d+(-rc\.\d+)?$/
+                           (GIT_TAG ==~ /^v\d+\.\d+\.\d+(-rc\.\d+)?$/) &&
+                           (PARAMETER == 'run-prod' ||
+                            (GITHUB_EVENT_ACTION == 'published' && GITHUB_REPO_NAME == REPO_NAME))
                 }
             }
             steps {
