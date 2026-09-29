@@ -44,6 +44,8 @@ route exists for this - see the spec at
 | `set_auto_tracing` | Flip the LabelSniffer (auto-tracer / auto-label-propagation) flag on ONE existing address, without a full-record upsert |
 | `get_auto_tracer_data` | Read the LabelSniffer flag and its five provenance fields for one address |
 | `delete_address` | Remove an address from the Label Cloud |
+| `add_address_tag` | Add ONE tag to an address on one network (`(address, tag, network)`, all required) |
+| `remove_address_tag` | PERMANENTLY remove ONE tag from an address on one network |
 | `get_entity_addresses` | Get all addresses associated with an entity |
 | `get_addresses_by_origin` | Every address a red label propagated to from an origin address |
 | `get_addresses_by_previous` | The direct children of one address in a propagation tree |
@@ -172,6 +174,8 @@ The following API endpoints are exposed as MCP tools:
 - `POST /v1/black-list/addresses` - Create address
 - `GET /v1/black-list/addresses` - Search addresses
 - `DELETE /v1/black-list/addresses/{address}` - Delete address
+- `PUT /v1/black-list/addresses/{address}/tags/{tag}` - Add address tag
+- `DELETE /v1/black-list/addresses/{address}/tags/{tag}` - Remove address tag
 - `GET /v1/black-list/addresses/entity/{entityId}` - Get entity addresses
 - `GET /v1/black-list/addresses/origin/{originAddress}` - Get addresses by origin
 - `GET /v1/black-list/addresses/previous/{previousAddress}` - Get addresses by previous

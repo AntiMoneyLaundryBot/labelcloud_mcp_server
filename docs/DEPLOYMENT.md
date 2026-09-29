@@ -105,7 +105,7 @@ claude mcp add --transport http labelcloud http://<host>:9180/mcp \
 ```
 
 A 2025-11-25-era client (including today's Claude Code over the legacy path) still connects
-and lists all 14 tools — the server serves both protocol eras from the same handler, and the
+and lists all 16 tools — the server serves both protocol eras from the same handler, and the
 tool contract is byte-identical between them (see the `mcp-golden.test.ts` / AC-1 check).
 2026-07-28 requests additionally get JSON responses (`responseMode: "json"`), `tools/list`
 cache hints (`ttlMs`/`cacheScope`), and per-tool `readOnlyHint`/`destructiveHint`
@@ -125,7 +125,7 @@ curl -s http://<host>:9180/mcp -X POST \
   -d '{"jsonrpc":"2.0","id":1,"method":"server/discover"}'   # → supportedVersions includes 2026-07-28
 curl -s http://<host>:9180/mcp -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'         # → 14 tools, no key needed
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'         # → 16 tools, no key needed
 ```
 
 The in-container `HEALTHCHECK` runs the same `405`-on-GET check.
@@ -228,6 +228,14 @@ ships it.
 The v2 remote-HTTP port (Peppermint #180, `v2.0.0`) needs **no backend change**: it is a
 transport and deployment change only, the tool set and its request/response shapes are
 byte-identical to 1.x (see AC-1 / `mcp-golden.test.ts`).
+
+`add_address_tag` / `remove_address_tag` and the top-level `tags` array on `search_addresses` /
+`get_auto_tracer_data` (Peppermint #193, `v2.1.0`) **need #19's backend routes**
+(`PUT`/`DELETE /v1/black-list/addresses/{address}/tags/{tag}`). Until #19 is enabled on the target
+backend the tag tools return the backend's 404 (`Cannot PUT …`), and reads show no `tags` key. The
+tag tools are additive: the other 14 tools are unchanged. A backend deploy of #19 before its DDL
+breaks the three tools that read through the v1 GET (`search_addresses`, `get_auto_tracer_data`,
+`set_auto_tracing`), so the DDL goes first.
 
 ## Node version
 
