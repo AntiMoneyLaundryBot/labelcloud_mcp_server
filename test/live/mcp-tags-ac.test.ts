@@ -2,7 +2,10 @@ import { describe, it, before } from "node:test";
 import assert from "node:assert";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { assertAllowedTestHost } from "../helpers/dev-endpoint.js";
+import { createRequire } from "node:module";
+import { assertAllowedTestHost, assertExactDevAppUrl } from "../helpers/dev-endpoint.js";
+
+const pkg = createRequire(import.meta.url)("../../package.json") as { version: string };
 
 /**
  * #193 segment 2 evidence harness (AC-1 / AC-2 MCP legs) against the Dev-App MCP.
@@ -14,6 +17,16 @@ import { assertAllowedTestHost } from "../helpers/dev-endpoint.js";
  *   LC_KEY_U1=... LC_KEY_G=... LC_KEY_O=... \
  *   node --import tsx --test test/live/mcp-tags-ac.test.ts
  *
+ * The `before` hook is the dev guard; ANY failure in it stops every write:
+ *   (a) MCP_TEST_URL must equal the Dev-App URL exactly;
+ *   (b) read-only proof of the upstream: initialize serverInfo.version === package version,
+ *       and U1's search_addresses on s18t1-3144a3-P through the MCP deep-equals the .rocks HTTP
+ *       GET and carries P's dev-only tag geo.uk;
+ *   (c) the first write is the probe add_address_tag {s18t2-X-<nonce>, bitcoin, probe.<nonce>},
+ *       read back through .rocks before any other write.
+ * AC193_NONCE=<6 hex> fixes the nonce; AC193_PROBE_ONLY=1 stops after the probe so a
+ * scylla-dev read-back can sit between it and the rest (re-run with the same AC193_NONCE).
+ *
  * It FAILS (never skips) when the URL or any key is missing. The store reads
  * (address_tags / blacklist_change_log in scylla-dev) are done by the agent and pasted
  * into the workdone; this file covers the MCP-visible half and saves it to
@@ -21,7 +34,12 @@ import { assertAllowedTestHost } from "../helpers/dev-endpoint.js";
  */
 
 const DEV_API_URL = "https://api-blacklist.amlbot.rocks";
-const FIXTURES = ["s18t1-P", "s18t1-Q", "s18t1-T"];
+const FIXTURE_NONCE = "3144a3";
+const FIXTURES = ["P", "Q", "T"].map((f) => `s18t1-${FIXTURE_NONCE}-${f}`);
+const P = FIXTURES[0]!;
+const probeOnly = process.env.AC193_PROBE_ONLY === "1";
+const nonce = process.env.AC193_NONCE ?? randomBytes(3).toString("hex");
+const X = `s18t2-X-${nonce}`;
 const FIELDS = ["address", "network", "type"];
 
 let mcpUrl: string;
@@ -93,19 +111,80 @@ async function httpSearch(key: string, address: string, withFields: boolean): Pr
   return response.json();
 }
 
-before(() => {
+/** The legacy (2025-11-25) initialize, the only place serverInfo is reported. */
+async function initializeVersion(key: string): Promise<string> {
+  const response = await fetch(mcpUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: { name: "ac193-guard", version: "0" },
+      },
+    }),
+  });
+  const raw = await response.text();
+  const payload = raw.startsWith("{")
+    ? raw
+    : (raw.split("\n").find((l) => l.startsWith("data:")) ?? "").slice(5);
+  const parsed = JSON.parse(payload) as { result?: { serverInfo?: { version?: string } } };
+  const version = parsed.result?.serverInfo?.version;
+  assert.ok(version, `initialize returned no serverInfo.version: HTTP ${response.status}`);
+  return version;
+}
+
+before(async () => {
   mcpUrl = requireEnv("MCP_TEST_URL");
   assertAllowedTestHost(mcpUrl);
+  assertExactDevAppUrl(mcpUrl);
   apiUrl = requireEnv("LC_API_URL");
   assert.strictEqual(apiUrl, DEV_API_URL, `LC_API_URL must be exactly ${DEV_API_URL}`);
   keys.U1 = requireEnv("LC_KEY_U1");
   keys.G = requireEnv("LC_KEY_G");
   keys.O = requireEnv("LC_KEY_O");
+  assert.match(nonce, /^[0-9a-f]{6}$/, "AC193_NONCE must be 6 lowercase hex characters");
+
+  // (b) prove the upstream is the dev backend, read-only, before any write.
+  const version = await initializeVersion(keys.U1);
+  assert.strictEqual(version, pkg.version, "MCP serverInfo.version != package version (1.x unit or stale image)");
+  const viaMcp = await callTool(keys.U1, "search_addresses", { address: P });
+  const viaHttp = await httpSearch(keys.U1, P, false);
+  assert.deepStrictEqual(viaMcp.json, viaHttp, "MCP upstream does not match the .rocks HTTP GET");
+  assert.ok(
+    ((viaMcp.json as { tags?: Array<{ tag: string }> }).tags ?? []).some((t) => t.tag === "geo.uk"),
+    "P's dev-only tag geo.uk is missing: the MCP is not reading the dev backend"
+  );
+
+  // (c) the first write is the probe, read back through .rocks before any other write.
+  const probeTag = `probe.${nonce}`;
+  const probe = await callTool(keys.U1, "add_address_tag", {
+    address: X,
+    network: "bitcoin",
+    tag: probeTag,
+  });
+  evidence["guard-probe"] = { X, probeTag, ...probe };
+  assert.strictEqual(probe.isError, false, probe.text);
+  const readBack = (await httpSearch(keys.U1, X, false)) as { tags?: Array<{ tag: string }> };
+  evidence["guard-probe-readback"] = readBack;
+  assert.ok(
+    (readBack.tags ?? []).some((t) => t.tag === probeTag),
+    `probe ${probeTag} not visible through ${DEV_API_URL}: the MCP writes somewhere else`
+  );
+  if (probeOnly) {
+    mkdirSync("workdone/193-evidence", { recursive: true });
+    writeFileSync("workdone/193-evidence/mcp-tags-probe.json", JSON.stringify(evidence, null, 2));
+  }
 });
 
-describe("#193 AC-1: the tools write what HTTP writes (MCP legs)", () => {
-  const nonce = randomBytes(3).toString("hex");
-  const X = `s18t2-X-${nonce}`;
+describe("#193 AC-1: the tools write what HTTP writes (MCP legs)", { skip: probeOnly }, () => {
   const evmLower = `0x${randomBytes(20).toString("hex")}`;
   const evmChecksumStyle = `0x${evmLower
     .slice(2)
@@ -197,7 +276,7 @@ describe("#193 AC-1: the tools write what HTTP writes (MCP legs)", () => {
   });
 });
 
-describe("#193 AC-2: search_addresses tags == HTTP v1 GET tags, with and without fields", () => {
+describe("#193 AC-2: search_addresses tags == HTTP v1 GET tags, with and without fields", { skip: probeOnly }, () => {
   for (const withFields of [false, true]) {
     for (const [who, key] of [
       ["O", () => keys.O],
@@ -227,9 +306,9 @@ describe("#193 AC-2: search_addresses tags == HTTP v1 GET tags, with and without
       ((await callTool(key, "search_addresses", { address: fixture })).json as { tags: unknown[] })
         .tags;
     const geoUk = [{ network: "bitcoin", tag: "geo.uk" }];
-    assert.deepStrictEqual(await tagsOf(keys.O, "s18t1-P"), geoUk);
-    assert.deepStrictEqual(await tagsOf(keys.O, "s18t1-T"), geoUk);
-    assert.deepStrictEqual(await tagsOf(keys.O, "s18t1-Q"), []);
+    assert.deepStrictEqual(await tagsOf(keys.O, P), geoUk);
+    assert.deepStrictEqual(await tagsOf(keys.O, FIXTURES[2]!), geoUk);
+    assert.deepStrictEqual(await tagsOf(keys.O, FIXTURES[1]!), []);
     for (const fixture of FIXTURES) {
       assert.deepStrictEqual(await tagsOf(keys.U1, fixture), geoUk);
     }
@@ -237,11 +316,11 @@ describe("#193 AC-2: search_addresses tags == HTTP v1 GET tags, with and without
 
   it("fields really applied: P's rows only carry the requested keys with fields, more without", async () => {
     const withF = (await callTool(keys.U1, "search_addresses", {
-      address: "s18t1-P",
+      address: P,
       fields: FIELDS,
     })) as { json: { publicBlacklist: Array<Record<string, unknown>> } };
     const without = (await callTool(keys.U1, "search_addresses", {
-      address: "s18t1-P",
+      address: P,
     })) as { json: { publicBlacklist: Array<Record<string, unknown>> } };
     for (const row of withF.json.publicBlacklist) {
       for (const k of Object.keys(row)) assert.ok(FIELDS.includes(k), `unexpected key ${k}`);
