@@ -71,7 +71,10 @@ export const toolConfigs: ToolConfig[] = [
       "Pass fields (e.g. enableSniffer, originAddress, previousAddress, txHash, txBlockchain, txTimestamp, publicInfo, organization, entityId, description, type, subType, reference) to read back the full record - required before using create_address to upsert any other field on an existing address, since that call is a full-record write. " +
       "To read just the " +
       LABEL_SNIFFER_NAMING +
-      " flag and its provenance, use get_auto_tracer_data instead. To flip the flag alone, use set_auto_tracing instead.",
+      " flag and its provenance, use get_auto_tracer_data instead. To flip the flag alone, use set_auto_tracing instead. " +
+      "The response always carries a top-level `tags` array of `{network, tag}` beside publicBlacklist/privateBlacklist. It covers all networks, or only the `blockchains` you pass. It is empty when the address has no tags or is not visible to your key. It is returned whatever `fields` you pass, and also for an address that has tags but no labels (empty lists plus tags). " +
+      "Tag lookup is case-sensitive on the address: send the address in the exact letter case you tagged it with, and pass only non-EVM networks in `blockchains` (any EVM network there makes the lookup lowercase the address). " +
+      "Add or remove tags with add_address_tag / remove_address_tag.",
     include: true,
   },
   {
@@ -80,7 +83,7 @@ export const toolConfigs: ToolConfig[] = [
     description:
       "Read " +
       LABEL_SNIFFER_NAMING +
-      " data for one address: the enableSniffer flag plus its five provenance fields (originAddress, previousAddress, txHash, txBlockchain, txTimestamp) - without naming any `fields` yourself. Input is just address and an optional network. Use search_addresses instead if you need other fields such as description, type, subType, reference or entityId.",
+      " data for one address: the enableSniffer flag plus its five provenance fields (originAddress, previousAddress, txHash, txBlockchain, txTimestamp) - without naming any `fields` yourself. Input is just address and an optional network. Its response also carries the address's top-level `tags` array, as search_addresses returns it, limited to `network` when you pass one. Use search_addresses instead if you need other fields such as description, type, subType, reference or entityId.",
     include: true,
     presetArgs: {
       fields: [
@@ -102,6 +105,29 @@ export const toolConfigs: ToolConfig[] = [
     operationId: "ApiAddressBlacklistController_destroy",
     name: "delete_address",
     description: "Remove an address from the AMLBot Label Cloud",
+    include: true,
+  },
+  {
+    operationId: "TagsController_add",
+    name: "add_address_tag",
+    description:
+      "Add ONE tag to a blockchain address on one network in the Label Cloud (e.g. `geo.uk.london`, `deposit.binance`). A tag is an extra fact about the address, separate from its label type, and an address can carry many.\n\n" +
+      "**Tag format:** the tag must match `^[a-z0-9_]+(\\.[a-z0-9_]+)*$` and be 1-128 characters long: lowercase letters, digits and underscores, with dots separating namespaces (`<namespace>.<value>[.<value>…]`). Anything else, including uppercase or spaces, is rejected with API error 400 and is never converted, so send the tag already lowercase. The one exception is a `.` or `..` piece (e.g. `..` or `a/..`), which is rejected locally with `Invalid path parameter` before any request is sent.\n\n" +
+      "**No edit:** to change a tag, remove the old one with remove_address_tag, then add the new one. Adding a tag the address already has changes nothing and returns `added:false`.\n\n" +
+      "**Network:** `network` is required. EVM addresses are stored lowercased under network `evm_eoa`, so all EVM chains share one tag set. The response echoes the stored address and network.\n\n" +
+      "**Privacy:** tags follow the address's privacy. You can tag an address only if its labels are visible to your key, or if it has no labels at all. Otherwise you get API error 404.\n\n" +
+      "**Labels are separate:** tags never change the address's label, and create_address and set_auto_tracing never read, send or clear tags. Read tags back with search_addresses, in its top-level `tags` array.",
+    include: true,
+  },
+  {
+    operationId: "TagsController_remove",
+    name: "remove_address_tag",
+    description:
+      "PERMANENTLY remove ONE tag from a blockchain address on one network. This is a hard delete: the tag disappears from every read, and only the audit log keeps a record. There is no undo other than adding it again with add_address_tag. There is also no edit: to change a tag, remove the old one and add the new one.\n\n" +
+      "The address, network and tag rules are the same as add_address_tag: the tag must match `^[a-z0-9_]+(\\.[a-z0-9_]+)*$`, be 1-128 characters and be lowercase; EVM addresses are matched lowercased under `evm_eoa`.\n\n" +
+      "**On success** the tool returns `null`.\n\n" +
+      "**API error 404** means one of two things, deliberately indistinguishable because tags follow the address's privacy: the tag is not on the address, or the address is not visible to your key.\n\n" +
+      "**Labels are untouched:** this never removes or changes the address's label. Use delete_address for that.",
     include: true,
   },
   {

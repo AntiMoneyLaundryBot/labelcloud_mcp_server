@@ -362,6 +362,11 @@ export function buildPath(
 ): string {
   let result = template;
   for (const [key, value] of Object.entries(pathParams)) {
+    // encodeURIComponent leaves "." alone and fetch() collapses dot segments, so a
+    // ".." tag would turn the tag route into the label-delete route. Reject locally.
+    if (String(value).split(/[\\/]/).some((piece) => piece === "." || piece === "..")) {
+      throw new Error(`Invalid path parameter "${key}": dot segments are not allowed`);
+    }
     result = result.replace(`{${key}}`, encodeURIComponent(value));
   }
   return result;

@@ -67,8 +67,15 @@ export function canonicalizeAddress(address: string, network?: string): string {
  * dispatch. Deliberately an explicit allow-list, NOT a blanket seam: a generic
  * rewrite would also touch create_address/delete_address input, changing what
  * gets written (violates C-2). Adding a tool here is a one-token change.
+ * The tag tools are allowed under C-2: they run the same (address, network)
+ * function the backend applies to tag keys, so they can never produce a key
+ * the backend would not store itself. search_addresses stays out (#176).
  */
-const ADDRESS_CANONICAL_TOOLS = new Set(["get_auto_tracer_data"]);
+const ADDRESS_CANONICAL_TOOLS = new Set([
+  "get_auto_tracer_data",
+  "add_address_tag",
+  "remove_address_tag",
+]);
 
 /**
  * Returns `args` unchanged unless `toolName` is in `ADDRESS_CANONICAL_TOOLS`, in

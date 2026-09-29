@@ -142,7 +142,7 @@ describe("canonicalizeAddress", () => {
   });
 });
 
-describe("canonicalizeToolArgs (the src/index.ts:153 seam, allow-listed to get_auto_tracer_data)", () => {
+describe("canonicalizeToolArgs (the src/index.ts:153 seam, allow-listed to get_auto_tracer_data and the two tag tools)", () => {
   it("canonicalizes address for get_auto_tracer_data", () => {
     const result = canonicalizeToolArgs("get_auto_tracer_data", {
       address: CHECKSUMMED,
@@ -151,6 +151,30 @@ describe("canonicalizeToolArgs (the src/index.ts:153 seam, allow-listed to get_a
     assert.strictEqual(result.address, LOWERCASE);
     assert.strictEqual(result.network, "evm_eoa");
   });
+
+  for (const toolName of ["add_address_tag", "remove_address_tag"]) {
+    it(`canonicalizes address for ${toolName} on ethereum and evm_eoa, never touching tag`, () => {
+      for (const network of ["ethereum", "evm_eoa"]) {
+        const result = canonicalizeToolArgs(toolName, {
+          address: CHECKSUMMED,
+          network,
+          tag: "Geo UK",
+        });
+        assert.strictEqual(result.address, LOWERCASE);
+        assert.strictEqual(result.network, network);
+        assert.strictEqual(result.tag, "Geo UK");
+      }
+    });
+
+    it(`keeps a 0x address byte-exact on tron for ${toolName}`, () => {
+      const result = canonicalizeToolArgs(toolName, {
+        address: CHECKSUMMED,
+        network: "tron",
+        tag: "geo.uk",
+      });
+      assert.strictEqual(result.address, CHECKSUMMED);
+    });
+  }
 
   it("leaves args byte-identical for every non-allow-listed tool (Q2 / C-2 guard)", () => {
     for (const toolName of [

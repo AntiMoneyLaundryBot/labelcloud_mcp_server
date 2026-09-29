@@ -41,12 +41,12 @@ after(async () => {
 });
 
 describe("AC-1: tools/list contract is byte-identical to the 1.x golden", () => {
-  it("a raw 2026-07-28 tools/list matches the golden, 14 entries in order", async () => {
+  it("a raw 2026-07-28 tools/list matches the golden, 16 entries in order", async () => {
     const result = await rpc2026(handle.url, { method: "tools/list", id: 1 });
     assert.strictEqual(result.status, 200);
     const body = result.body as { result: { tools: ProjectableTool[] } };
     const projected = project(body.result.tools);
-    assert.strictEqual(projected.length, 14);
+    assert.strictEqual(projected.length, 16);
     assert.deepStrictEqual(projected, golden);
   });
 
@@ -56,7 +56,7 @@ describe("AC-1: tools/list contract is byte-identical to the 1.x golden", () => 
     try {
       const result = await client.listTools();
       const projected = project(result.tools as ProjectableTool[]);
-      assert.strictEqual(projected.length, 14);
+      assert.strictEqual(projected.length, 16);
       assert.deepStrictEqual(projected, golden);
     } finally {
       await client.close();
