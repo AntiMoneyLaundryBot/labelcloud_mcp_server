@@ -16,14 +16,19 @@ const READ_ONLY = new Set([
 ]);
 
 /**
- * The 2 tools that permanently remove a row.
+ * The 3 tools that permanently remove a row.
  */
-const DESTRUCTIVE = new Set(["delete_address", "delete_entity"]);
+const DESTRUCTIVE = new Set(["delete_address", "delete_entity", "remove_address_tag"]);
 
 /**
- * The 3 tools that write but never destroy.
+ * The 4 tools that write but never destroy.
  */
-const WRITE = new Set(["create_address", "create_entity", "set_auto_tracing"]);
+const WRITE = new Set([
+  "create_address",
+  "create_entity",
+  "set_auto_tracing",
+  "add_address_tag",
+]);
 
 const EXPECTED_TOOL_COUNT = READ_ONLY.size + DESTRUCTIVE.size + WRITE.size;
 
@@ -51,7 +56,7 @@ function annotationsFor(toolName: string): McpToolAnnotations {
  * Adds a readOnlyHint/destructiveHint pair to each tool for the AC-10 client
  * hint. Throws rather than silently under-annotating if a tool is missing
  * from all three lists above, or if the lists and the actual tool set don't
- * both land on exactly 14 - a renamed or added tool must update this file.
+ * both land on exactly 16 - a renamed or added tool must update this file.
  */
 export function withAnnotations(tools: MCPTool[]): AnnotatedTool[] {
   const annotated = tools.map((tool) => ({ ...tool, annotations: annotationsFor(tool.name) }));
@@ -60,10 +65,10 @@ export function withAnnotations(tools: MCPTool[]): AnnotatedTool[] {
   if (
     tools.length !== EXPECTED_TOOL_COUNT ||
     uniqueNames.size !== EXPECTED_TOOL_COUNT ||
-    EXPECTED_TOOL_COUNT !== 14
+    EXPECTED_TOOL_COUNT !== 16
   ) {
     throw new Error(
-      `withAnnotations: expected exactly 14 uniquely-named tools classified across ` +
+      `withAnnotations: expected exactly 16 uniquely-named tools classified across ` +
         `READ_ONLY/DESTRUCTIVE/WRITE, got ${tools.length} tools (${uniqueNames.size} unique) ` +
         `against ${EXPECTED_TOOL_COUNT} classified`
     );
