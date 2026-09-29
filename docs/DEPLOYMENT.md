@@ -232,7 +232,7 @@ byte-identical to 1.x (see AC-1 / `mcp-golden.test.ts`).
 `add_address_tag` / `remove_address_tag` and the top-level `tags` array on `search_addresses` /
 `get_auto_tracer_data` (Peppermint #193, `v2.1.0`) **need #19's backend routes**
 (`PUT`/`DELETE /v1/black-list/addresses/{address}/tags/{tag}`). Until #19 is enabled on the target
-backend the tag tools return the backend's 404 (`Cannot PUT …`), and reads show no `tags` key. The
+backend the tag tools return the backend's 404 (`Cannot PUT` / `Cannot DELETE …`), and reads show no `tags` key. The
 tag tools are additive: the other 14 tools are unchanged. A backend deploy of #19 before its DDL
 breaks the three tools that read through the v1 GET (`search_addresses`, `get_auto_tracer_data`,
 `set_auto_tracing`), so the DDL goes first.
