@@ -73,7 +73,7 @@ export const toolConfigs: ToolConfig[] = [
       LABEL_SNIFFER_NAMING +
       " flag and its provenance, use get_auto_tracer_data instead. To flip the flag alone, use set_auto_tracing instead. " +
       "The response always carries a top-level `tags` array of `{network, tag}` beside publicBlacklist/privateBlacklist. It covers all networks, or only the `blockchains` you pass. It is empty when the address has no tags or is not visible to your key. It is returned whatever `fields` you pass, and also for an address that has tags but no labels (empty lists plus tags). " +
-      "Tag lookup follows the address case: for a 0x address tagged on a non-EVM network, pass that network in `blockchains` (same letter case as when tagged); for a non-0x address tagged on an EVM network, do not pass `blockchains`. " +
+      "Tag lookup is case-sensitive on the address: send the address in the exact letter case you tagged it with, and pass only non-EVM networks in `blockchains` (any EVM network there makes the lookup lowercase the address). " +
       "Add or remove tags with add_address_tag / remove_address_tag.",
     include: true,
   },
@@ -112,7 +112,7 @@ export const toolConfigs: ToolConfig[] = [
     name: "add_address_tag",
     description:
       "Add ONE tag to a blockchain address on one network in the Label Cloud (e.g. `geo.uk.london`, `deposit.binance`). A tag is an extra fact about the address, separate from its label type, and an address can carry many.\n\n" +
-      "**Tag format:** the tag must match `^[a-z0-9_]+(\\.[a-z0-9_]+)*$` and be 1-128 characters long: lowercase letters, digits and underscores, with dots separating namespaces (`<namespace>.<value>[.<value>…]`). Anything else, including uppercase or spaces, is rejected with API error 400 and is never converted, so send the tag already lowercase.\n\n" +
+      "**Tag format:** the tag must match `^[a-z0-9_]+(\\.[a-z0-9_]+)*$` and be 1-128 characters long: lowercase letters, digits and underscores, with dots separating namespaces (`<namespace>.<value>[.<value>…]`). Anything else, including uppercase or spaces, is rejected with API error 400 and is never converted, so send the tag already lowercase. The one exception is a `.` or `..` piece (e.g. `..` or `a/..`), which is rejected locally with `Invalid path parameter` before any request is sent.\n\n" +
       "**No edit:** to change a tag, remove the old one with remove_address_tag, then add the new one. Adding a tag the address already has changes nothing and returns `added:false`.\n\n" +
       "**Network:** `network` is required. EVM addresses are stored lowercased under network `evm_eoa`, so all EVM chains share one tag set. The response echoes the stored address and network.\n\n" +
       "**Privacy:** tags follow the address's privacy. You can tag an address only if its labels are visible to your key, or if it has no labels at all. Otherwise you get API error 404.\n\n" +
