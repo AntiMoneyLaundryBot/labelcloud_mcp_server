@@ -262,6 +262,40 @@ describe("#193 add_address_tag / remove_address_tag over the wire", () => {
       upstream.hits[1]?.url,
       `/v1/black-list/addresses/${BTC}/tags/a%2Fb?network=bitcoin`
     );
+
+    // Percent-encoded dot segments are safe only because encodeURIComponent re-escapes the `%`
+    // (`%2e%2e` -> `%252e%252e`); fetch would collapse a raw `%2e%2e` exactly like `..`.
+    for (const [tag, encoded] of [
+      ["%2e%2e", "%252e%252e"],
+      ["%2E.", "%252E."],
+      [".%2e", ".%252e"],
+    ] as const) {
+      const before = upstream.hits.length;
+      await call("remove_address_tag", { address: BTC, network: "bitcoin", tag }, id++);
+      assert.strictEqual(upstream.hits.length, before + 1, `tag=${tag} must make one call`);
+      assert.strictEqual(
+        upstream.hits[before]?.url,
+        `/v1/black-list/addresses/${BTC}/tags/${encoded}?network=bitcoin`
+      );
+    }
+
+    // Address side: a dot-segment piece is rejected locally, a plain slash is encoded.
+    const beforeAddr = upstream.hits.length;
+    const slashDots = await call(
+      "remove_address_tag",
+      { address: "X/..", network: "bitcoin", tag: "geo.uk" },
+      id++
+    );
+    assert.strictEqual(slashDots.isError, true);
+    assert.match(slashDots.content[0]!.text, /Invalid path parameter/);
+    assert.strictEqual(upstream.hits.length, beforeAddr, "address X/.. must make zero calls");
+
+    await call("remove_address_tag", { address: "a/b", network: "bitcoin", tag: "geo.uk" }, id++);
+    assert.strictEqual(upstream.hits.length, beforeAddr + 1);
+    assert.strictEqual(
+      upstream.hits[beforeAddr]?.url,
+      `/v1/black-list/addresses/a%2Fb/tags/geo.uk?network=bitcoin`
+    );
   });
 });
 
