@@ -43,7 +43,7 @@ export function devServerEnv(): NodeJS.ProcessEnv {
 const ALLOWED_TEST_HOSTS = new Set(["127.0.0.1", "localhost", "94.130.51.230"]);
 const ALLOWED_TEST_HOST_SUFFIX = ".amlbot.rocks";
 
-function assertAllowedTestHost(rawUrl: string): void {
+export function assertAllowedTestHost(rawUrl: string): void {
   const hostname = new URL(rawUrl).hostname;
   const allowed =
     ALLOWED_TEST_HOSTS.has(hostname) || hostname.endsWith(ALLOWED_TEST_HOST_SUFFIX);
