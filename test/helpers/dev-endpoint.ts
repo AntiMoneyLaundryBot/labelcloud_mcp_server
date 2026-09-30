@@ -43,7 +43,7 @@ export function devServerEnv(): NodeJS.ProcessEnv {
 const ALLOWED_TEST_HOSTS = new Set(["127.0.0.1", "localhost", "94.130.51.230"]);
 const ALLOWED_TEST_HOST_SUFFIX = ".amlbot.rocks";
 
-function assertAllowedTestHost(rawUrl: string): void {
+export function assertAllowedTestHost(rawUrl: string): void {
   const hostname = new URL(rawUrl).hostname;
   const allowed =
     ALLOWED_TEST_HOSTS.has(hostname) || hostname.endsWith(ALLOWED_TEST_HOST_SUFFIX);
@@ -53,6 +53,23 @@ function assertAllowedTestHost(rawUrl: string): void {
         `allow-list (127.0.0.1, localhost, 94.130.51.230, *.amlbot.rocks). This suite creates ` +
         `and deletes real rows and must never run against an unrecognised host, especially prod ` +
         `(162.55.129.53).`
+    );
+  }
+}
+
+/** The one MCP endpoint the live write harness may target: the Dev-App instance (spec §5). */
+export const DEV_APP_MCP_URL = "http://94.130.51.230:9180/mcp";
+
+/**
+ * Stricter than assertAllowedTestHost, for suites that WRITE through the MCP: the URL must be
+ * exactly the Dev-App MCP. The host allow-list admits any port on localhost, so a one-port typo
+ * (the 1.x mcp-labelcloud unit on :9102) would pass it.
+ */
+export function assertExactDevAppUrl(rawUrl: string): void {
+  if (rawUrl !== DEV_APP_MCP_URL) {
+    throw new Error(
+      `Refusing to run: MCP_TEST_URL must be exactly ${DEV_APP_MCP_URL} for the live write ` +
+        `harness, got "${rawUrl}". No write was sent.`
     );
   }
 }

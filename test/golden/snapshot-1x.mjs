@@ -103,12 +103,12 @@ async function main() {
       inputSchema: t.inputSchema,
     }));
 
-    if (projected.length !== 14) {
-      throw new Error(`Expected 14 tools, got ${projected.length}: ${projected.map((t) => t.name).join(",")}`);
+    if (projected.length !== 16) {
+      throw new Error(`Expected 16 tools, got ${projected.length}: ${projected.map((t) => t.name).join(",")}`);
     }
 
     writeFileSync(out, JSON.stringify(projected, null, 2) + "\n");
-    console.log(`14 tools: ${projected.map((t) => t.name).join(",")}`);
+    console.log(`16 tools: ${projected.map((t) => t.name).join(",")}`);
   } finally {
     clearTimeout(timeout);
     child.kill();

@@ -33,8 +33,8 @@ const READ_ONLY_TOOLS = [
   "get_networks",
   "get_types",
 ];
-const DESTRUCTIVE_TOOLS = ["delete_address", "delete_entity"];
-const WRITE_TOOLS = ["create_address", "create_entity", "set_auto_tracing"];
+const DESTRUCTIVE_TOOLS = ["delete_address", "delete_entity", "remove_address_tag"];
+const WRITE_TOOLS = ["create_address", "create_entity", "set_auto_tracing", "add_address_tag"];
 
 function okJson(status = 200, jsonBody: unknown = {}) {
   return (
@@ -243,7 +243,7 @@ describe("AC-10: 2.x optimisations are present on the wire", () => {
     void cacheMeta;
   });
 
-  it("annotations: readOnlyHint/destructiveHint match the 9/2/3 split exactly", async () => {
+  it("annotations: readOnlyHint/destructiveHint match the 9/3/4 split exactly", async () => {
     const result = await rpc2026(handle.url, { method: "tools/list", id: 12 });
     const body = result.body as {
       result: { tools: Array<{ name: string; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean } }> };

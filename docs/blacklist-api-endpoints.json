@@ -255,7 +255,14 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResponseAddressSearchDto"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -513,6 +520,239 @@
                 ],
                 "tags": [
                     "ApiAddressBlacklist"
+                ]
+            }
+        },
+        "/v1/black-list/addresses/{address}/tags/{tag}": {
+            "put": {
+                "operationId": "TagsController_add",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tag",
+                        "required": true,
+                        "in": "path",
+                        "description": "Tag, 1-128 characters, matching ^[a-z0-9_]+(\\.[a-z0-9_]+)*$ (lowercase letters, digits, underscores; dots separate namespaces). Sent verbatim, never lowercased or converted.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "required": true,
+                        "in": "query",
+                        "description": "Address network (required)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "unknown",
+                                "tron",
+                                "ethereum",
+                                "bitcoin",
+                                "solana",
+                                "evmos",
+                                "cosmos",
+                                "polygon",
+                                "arbitrum",
+                                "avalanche",
+                                "cronos",
+                                "optimism",
+                                "evm_eoa",
+                                "sui",
+                                "aptos",
+                                "doge",
+                                "bsc",
+                                "ton",
+                                "zksync",
+                                "multiversx",
+                                "ripple",
+                                "tao",
+                                "polkadot",
+                                "ronin",
+                                "cardano",
+                                "confidence",
+                                "monero",
+                                "centrifuge",
+                                "acala",
+                                "algorand",
+                                "zcash",
+                                "dash",
+                                "litecoin",
+                                "blast",
+                                "xrp_ledger",
+                                "near",
+                                "terra_classic",
+                                "manta",
+                                "moonbeam",
+                                "base",
+                                "bitcoin_cash",
+                                "scroll",
+                                "eos",
+                                "kaspa",
+                                "theta",
+                                "internet_computer",
+                                "sei",
+                                "thor_chain",
+                                "stellar",
+                                "injective",
+                                "zilliqa",
+                                "hedera",
+                                "astar",
+                                "bittensor",
+                                "ethereum_classic",
+                                "kava",
+                                "kusama",
+                                "tezos",
+                                "filecoin",
+                                "enjin",
+                                "neuroweb",
+                                "krest",
+                                "hydration",
+                                "bts",
+                                "waves"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AddTagResponseDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "Tags"
+                ]
+            },
+            "delete": {
+                "operationId": "TagsController_remove",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tag",
+                        "required": true,
+                        "in": "path",
+                        "description": "Tag, 1-128 characters, matching ^[a-z0-9_]+(\\.[a-z0-9_]+)*$ (lowercase letters, digits, underscores; dots separate namespaces). Sent verbatim, never lowercased or converted.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "required": true,
+                        "in": "query",
+                        "description": "Address network (required)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "unknown",
+                                "tron",
+                                "ethereum",
+                                "bitcoin",
+                                "solana",
+                                "evmos",
+                                "cosmos",
+                                "polygon",
+                                "arbitrum",
+                                "avalanche",
+                                "cronos",
+                                "optimism",
+                                "evm_eoa",
+                                "sui",
+                                "aptos",
+                                "doge",
+                                "bsc",
+                                "ton",
+                                "zksync",
+                                "multiversx",
+                                "ripple",
+                                "tao",
+                                "polkadot",
+                                "ronin",
+                                "cardano",
+                                "confidence",
+                                "monero",
+                                "centrifuge",
+                                "acala",
+                                "algorand",
+                                "zcash",
+                                "dash",
+                                "litecoin",
+                                "blast",
+                                "xrp_ledger",
+                                "near",
+                                "terra_classic",
+                                "manta",
+                                "moonbeam",
+                                "base",
+                                "bitcoin_cash",
+                                "scroll",
+                                "eos",
+                                "kaspa",
+                                "theta",
+                                "internet_computer",
+                                "sei",
+                                "thor_chain",
+                                "stellar",
+                                "injective",
+                                "zilliqa",
+                                "hedera",
+                                "astar",
+                                "bittensor",
+                                "ethereum_classic",
+                                "kava",
+                                "kusama",
+                                "tezos",
+                                "filecoin",
+                                "enjin",
+                                "neuroweb",
+                                "krest",
+                                "hydration",
+                                "bts",
+                                "waves"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "Tags"
                 ]
             }
         },
@@ -1508,6 +1748,73 @@
                 "required": [
                     "name",
                     "isPublicInfo"
+                ]
+            },
+            "AddressTagDto": {
+                "type": "object",
+                "properties": {
+                    "network": {
+                        "type": "string"
+                    },
+                    "tag": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "network",
+                    "tag"
+                ]
+            },
+            "ResponseAddressSearchDto": {
+                "type": "object",
+                "properties": {
+                    "publicBlacklist": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "privateBlacklist": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "tags": {
+                        "description": "Always present, not affected by `fields`, ordered by network then tag.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AddressTagDto"
+                        }
+                    }
+                },
+                "required": [
+                    "publicBlacklist",
+                    "privateBlacklist",
+                    "tags"
+                ]
+            },
+            "AddTagResponseDto": {
+                "type": "object",
+                "properties": {
+                    "address": {
+                        "type": "string"
+                    },
+                    "network": {
+                        "type": "string"
+                    },
+                    "tag": {
+                        "type": "string"
+                    },
+                    "added": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "address",
+                    "network",
+                    "tag",
+                    "added"
                 ]
             }
         }

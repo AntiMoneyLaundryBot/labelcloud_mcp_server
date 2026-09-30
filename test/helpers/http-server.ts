@@ -102,6 +102,8 @@ export interface UpstreamHit {
   url: string;
   apiKey: string | undefined;
   userAgent: string | undefined;
+  /** Raw request body bytes as a string ("" when the request carried none). */
+  body: string;
 }
 
 export interface MockUpstream {
@@ -118,13 +120,18 @@ export async function mockUpstream(
   const server = createNodeHttpServer((req, res) => {
     const apiKeyHeader = req.headers["x-api-key"];
     const userAgentHeader = req.headers["user-agent"];
-    hits.push({
-      method: req.method ?? "",
-      url: req.url ?? "",
-      apiKey: Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader,
-      userAgent: Array.isArray(userAgentHeader) ? userAgentHeader[0] : userAgentHeader,
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      hits.push({
+        method: req.method ?? "",
+        url: req.url ?? "",
+        apiKey: Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader,
+        userAgent: Array.isArray(userAgentHeader) ? userAgentHeader[0] : userAgentHeader,
+        body: Buffer.concat(chunks).toString("utf8"),
+      });
+      handler(req, res);
     });
-    handler(req, res);
   });
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
