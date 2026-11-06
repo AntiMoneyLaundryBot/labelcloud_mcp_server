@@ -48,6 +48,24 @@ operator-owned (`origin/main` and prod Jenkins jobs are operator-owned per stand
 The implementor opens the `dev`→`main` PR and drafts the release; the operator, or the TL on
 the operator's explicit go, merges and publishes the tag.
 
+**Prod trigger for v2.2.0 (and any later release): push the release tag, then run
+`Prod-App/labelcloud-mcp` with `run-prod`. That is the only trigger. Never also publish a GitHub
+release for the same tag** (that would start a second, duplicate Prod-App build).
+
+**Prod post-deploy check (v2.2.0):** after the `run-prod` build, from outside the host, confirm
+the running MCP reports **version `2.2.0`** and lists **24 tools**:
+
+```bash
+curl -s http://162.55.129.53:9180/mcp -X POST \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"post-deploy","version":"0"}}}'   # → serverInfo.version "2.2.0"
+curl -s http://162.55.129.53:9180/mcp -X POST \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'                                     # → 24 tools
+```
+
+A `2.1.0` version or 16 tools means the old image is still serving.
+
 Deploying the image on each host is `docker-compose`-managed from
 `/root/docker-compose/labelcloud-mcp/docker-compose.yaml`, copied from
 `docker-compose.reference.yaml` in this repo with the `# prod:` lines swapped. That reference
@@ -105,7 +123,7 @@ claude mcp add --transport http labelcloud http://<host>:9180/mcp \
 ```
 
 A 2025-11-25-era client (including today's Claude Code over the legacy path) still connects
-and lists all 16 tools — the server serves both protocol eras from the same handler, and the
+and lists all 24 tools — the server serves both protocol eras from the same handler, and the
 tool contract is byte-identical between them (see the `mcp-golden.test.ts` / AC-1 check).
 2026-07-28 requests additionally get JSON responses (`responseMode: "json"`), `tools/list`
 cache hints (`ttlMs`/`cacheScope`), and per-tool `readOnlyHint`/`destructiveHint`
@@ -125,7 +143,7 @@ curl -s http://<host>:9180/mcp -X POST \
   -d '{"jsonrpc":"2.0","id":1,"method":"server/discover"}'   # → supportedVersions includes 2026-07-28
 curl -s http://<host>:9180/mcp -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'         # → 16 tools, no key needed
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'         # → 24 tools, no key needed
 ```
 
 The in-container `HEALTHCHECK` runs the same `405`-on-GET check.
@@ -233,9 +251,17 @@ byte-identical to 1.x (see AC-1 / `mcp-golden.test.ts`).
 `get_auto_tracer_data` (Peppermint #193, `v2.1.0`) **need #19's backend routes**
 (`PUT`/`DELETE /v1/black-list/addresses/{address}/tags/{tag}`). Until #19 is enabled on the target
 backend the tag tools return the backend's 404 (`Cannot PUT` / `Cannot DELETE …`), and reads show no `tags` key. The
-tag tools are additive: the other 14 tools are unchanged. A backend deploy of #19 before its DDL
+tag tools are additive: the other 14 tools are unchanged by it. A backend deploy of #19 before its DDL
 breaks the three tools that read through the v1 GET (`search_addresses`, `get_auto_tracer_data`,
 `set_auto_tracing`), so the DDL goes first.
+
+`create_incident`, `get_incident`, `get_incident_by_tag`, `search_incidents`, `update_incident`,
+`delete_incident`, `get_incident_addresses`, `get_address_incidents` (Peppermint #279 / #285, `v2.2.0`,
+24 tools) **need the backend's incident routes** (`/v1/black-list/incidents*`,
+`/v1/black-list/addresses/{address}/incidents`) and the incident-aware tag behaviour on
+`add_address_tag` / `remove_address_tag` / the v1 GET `tags`. Without them the incident tools return
+the backend's 404. The live acceptance harness is `test/live/mcp-incidents-ac.test.ts` (dev only,
+not part of `npm test`; see its header).
 
 ## Node version
 

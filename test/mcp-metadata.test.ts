@@ -51,6 +51,14 @@ describe("MCP Tool Discovery", () => {
         "get_addresses_by_previous",
         "add_address_tag",
         "remove_address_tag",
+        "create_incident",
+        "get_incident",
+        "get_incident_by_tag",
+        "search_incidents",
+        "update_incident",
+        "delete_incident",
+        "get_incident_addresses",
+        "get_address_incidents",
       ];
 
       const toolNames = result.tools.map((t) => t.name);

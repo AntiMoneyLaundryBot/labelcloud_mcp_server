@@ -20,6 +20,8 @@ const paramDescriptionOverrides: Record<string, string> = {
     "Entity UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Get this from search_entities response 'id' field, not the entity name.",
   address:
     "Blockchain address hash (e.g., '0x1234...' for Ethereum, 'T...' for Tron). Not an entity name.",
+  incidentId:
+    "Incident UUID. Get this from the `id` field of create_incident, search_incidents or get_incident_by_tag, not the incident name or tag.",
 };
 
 // OpenAPI types (simplified for our use case)
@@ -56,6 +58,7 @@ interface OpenAPIPathItem {
   get?: OpenAPIOperation;
   post?: OpenAPIOperation;
   put?: OpenAPIOperation;
+  patch?: OpenAPIOperation;
   delete?: OpenAPIOperation;
 }
 
@@ -319,6 +322,7 @@ export function generateToolsFromSpec(spec: OpenAPISpec): {
       { method: "get", operation: pathItem.get },
       { method: "post", operation: pathItem.post },
       { method: "put", operation: pathItem.put },
+      { method: "patch", operation: pathItem.patch },
       { method: "delete", operation: pathItem.delete },
     ];
 

@@ -74,6 +74,7 @@ export const toolConfigs: ToolConfig[] = [
       " flag and its provenance, use get_auto_tracer_data instead. To flip the flag alone, use set_auto_tracing instead. " +
       "The response always carries a top-level `tags` array of `{network, tag}` beside publicBlacklist/privateBlacklist. It covers all networks, or only the `blockchains` you pass. It is empty when the address has no tags or is not visible to your key. It is returned whatever `fields` you pass, and also for an address that has tags but no labels (empty lists plus tags). " +
       "Tag lookup is case-sensitive on the address: send the address in the exact letter case you tagged it with, and pass only non-EVM networks in `blockchains` (any EVM network there makes the lookup lowercase the address). " +
+      "An `incident.*` tag shows only when your key can see both the address and the incident. The tag of a DELETED incident shows only to the incident's owner org and to global read keys. If the incident lookup fails the call returns a 5xx error, never the tag. To list the incidents an address is tagged with (full incident objects), use get_address_incidents. " +
       "Add or remove tags with add_address_tag / remove_address_tag.",
     include: true,
   },
@@ -116,6 +117,7 @@ export const toolConfigs: ToolConfig[] = [
       "**No edit:** to change a tag, remove the old one with remove_address_tag, then add the new one. Adding a tag the address already has changes nothing and returns `added:false`.\n\n" +
       "**Network:** `network` is required. EVM addresses are stored lowercased under network `evm_eoa`, so all EVM chains share one tag set. The response echoes the stored address and network.\n\n" +
       "**Privacy:** tags follow the address's privacy. You can tag an address only if its labels are visible to your key, or if it has no labels at all. Otherwise you get API error 404.\n\n" +
+      "**Reserved `incident` namespace:** a tag that starts with `incident.` is accepted only if an ACTIVE incident with exactly that tag exists and is visible to your key (see create_incident, search_incidents, get_incident_by_tag). Otherwise you get API error 404, indistinguishable from the hidden-address 404. Never compose an incident tag by hand: copy the `tag` of the incident.\n\n" +
       "**Labels are separate:** tags never change the address's label, and create_address and set_auto_tracing never read, send or clear tags. Read tags back with search_addresses, in its top-level `tags` array.",
     include: true,
   },
@@ -126,7 +128,7 @@ export const toolConfigs: ToolConfig[] = [
       "PERMANENTLY remove ONE tag from a blockchain address on one network. This is a hard delete: the tag disappears from every read, and only the audit log keeps a record. There is no undo other than adding it again with add_address_tag. There is also no edit: to change a tag, remove the old one and add the new one.\n\n" +
       "The address, network and tag rules are the same as add_address_tag: the tag must match `^[a-z0-9_]+(\\.[a-z0-9_]+)*$`, be 1-128 characters and be lowercase; EVM addresses are matched lowercased under `evm_eoa`.\n\n" +
       "**On success** the tool returns `null`.\n\n" +
-      "**API error 404** means one of two things, deliberately indistinguishable because tags follow the address's privacy: the tag is not on the address, or the address is not visible to your key.\n\n" +
+      "**API error 404** means one of three things, deliberately indistinguishable because tags follow the address's privacy: the tag is not on the address, the address is not visible to your key, or the tag is an `incident.*` tag of an incident your key cannot see. One exception: the tag of a DELETED incident stays on its addresses and can still be removed by the incident's owner org or by a `write_address_global` key.\n\n" +
       "**Labels are untouched:** this never removes or changes the address's label. Use delete_address for that.",
     include: true,
   },
@@ -189,6 +191,71 @@ export const toolConfigs: ToolConfig[] = [
     name: "delete_entity",
     description:
       "Delete an entity by UUID. Use search_entities first to find the entityId if you only have the name.",
+    include: true,
+  },
+
+  // === Incident Operations ===
+  {
+    operationId: "IncidentsController_create",
+    name: "create_incident",
+    description:
+      "Create an incident: a named event (e.g. a hack) whose tag can be put on many addresses with add_address_tag. Required: `name` and `incidentDate` (YYYY-MM-DD). Optional: `isPublicInfo` (default false), `description`, `reference`, `tag`. Returns the incident including its `id` (UUID; pass it as `incidentId` to get_incident / update_incident / delete_incident / get_incident_addresses) and its `tag`.\n\n" +
+      "**Tag:** omit `tag` to have it generated as `incident.<slug>.<yyyymmdd>`. An explicit `tag` must match `^[a-z0-9_]+(\\.[a-z0-9_]+)*$`, be at most 128 characters, and its date part must equal `incidentDate` written as yyyymmdd; otherwise API error 400 and nothing is stored. The tag is immutable (settable on create only) and is never reused: a duplicate, including the tag of a DELETED incident, gives API error 409.\n\n" +
+      "**Public vs private:** `isPublicInfo: true` needs a `write_address_global` key (otherwise API error 403). A private incident is visible to your organization only. Unknown fields give API error 400.\n\n" +
+      "**Membership:** to put an address on the incident, call add_address_tag with the incident's exact `tag`. Incident tags are copied by " +
+      LABEL_SNIFFER_NAMING +
+      " onto the addresses it labels. " +
+      "LabelSniffer carries only public incidents and private incidents owned by the org `amlbot`.",
+    include: true,
+  },
+  {
+    operationId: "IncidentsController_show",
+    name: "get_incident",
+    description:
+      "Get one incident by `incidentId`, its UUID (the `id` returned by create_incident, search_incidents or get_incident_by_tag). Returns {id, name, tag, organization, isPublicInfo, description, incidentDate, reference, status, createdAt, updatedAt, createdBy}. API error 404 when it does not exist or is not visible to your key.",
+    include: true,
+  },
+  {
+    operationId: "IncidentsController_showByTag",
+    name: "get_incident_by_tag",
+    description:
+      "Get one incident by its exact tag (e.g. `incident.binance_hack.20261030`). Same incident object as get_incident. The tag is sent verbatim. A DELETED incident is still returned to its owner org and to global keys, with `status: DELETED`. API error 404 when no incident holds that tag or it is not visible to your key.",
+    include: true,
+  },
+  {
+    operationId: "IncidentsController_search",
+    name: "search_incidents",
+    description:
+      "List incidents visible to your key. Optional filters: `name`, `status` (ONE of ACTIVE or DELETED, default ACTIVE), `isPublicInfo`. `limit` is 1-100 (default 50). Returns `{items, nextCursor}`. Pages may be short or even empty before the end of the list: ALWAYS pass `nextCursor` back as `cursor` until it is null, and only then treat the list as complete.",
+    include: true,
+  },
+  {
+    operationId: "IncidentsController_update",
+    name: "update_incident",
+    description:
+      "Partially update an incident, identified by `incidentId` (the UUID `id` returned by create_incident / search_incidents): send only the fields to change among `name`, `description`, `reference`, `isPublicInfo`; omitted fields stay as they are. The `tag` is immutable and is not an input of this tool. Changing `incidentDate` returns API error 400, because the tag carries the date. Making an incident public needs a `write_address_global` key (API error 403 otherwise). API error 404 when it does not exist or is not visible.",
+    include: true,
+    omitArgs: ["tag"],
+  },
+  {
+    operationId: "IncidentsController_destroy",
+    name: "delete_incident",
+    description:
+      "Soft-delete an incident, identified by `incidentId` (the UUID `id` returned by create_incident / search_incidents); idempotent. The incident's tag is NOT removed from the addresses it is on and is never reused. A DELETED incident stays visible to its owner org and to global read keys, and its tag can still be removed from addresses with remove_address_tag by the owner org or a `write_address_global` key. Returns `null` on success. API error 403 without permission, 404 when it does not exist or is not visible.",
+    include: true,
+  },
+  {
+    operationId: "IncidentMembershipController_listAddresses",
+    name: "get_incident_addresses",
+    description:
+      "List the addresses tagged with an incident (`incidentId`: its UUID `id`, as returned by create_incident / search_incidents). Returns `{items: [{address, network, tag, createdAt, createdBy}], nextCursor}`; `network` is `evm_eoa` for every EVM chain. `limit` is optional. Pages may be short or empty before the end: pass `nextCursor` back as `cursor` unchanged (it is opaque) until it is null. API error 400 for a bad cursor, 404 when the incident does not exist or is not visible.",
+    include: true,
+  },
+  {
+    operationId: "IncidentMembershipController_listIncidents",
+    name: "get_address_incidents",
+    description:
+      "List the incidents an address is tagged with. Input: `address` and an optional `network` filter (EVM chains are normalised to `evm_eoa`). Returns `{items: [{network, tag, incident}]}` where `incident` is the full incident object. An address that is not visible to your key gives `items: []` (HTTP 200), not a 404. API error 500 if an incident lookup fails.",
     include: true,
   },
 

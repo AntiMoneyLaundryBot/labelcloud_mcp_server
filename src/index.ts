@@ -164,9 +164,15 @@ async function handleToolCall(
   // Build path with path parameters
   const pathParams: Record<string, string> = {};
   for (const paramName of opInfo.pathParams) {
-    if (resolvedArgs[paramName] !== undefined) {
-      pathParams[paramName] = String(resolvedArgs[paramName]);
+    const value = resolvedArgs[paramName];
+    if (value === undefined || value === null || String(value).trim() === "") {
+      // Fail locally: otherwise the literal "{param}" would be sent upstream (backend 404).
+      const exposed =
+        Object.entries(opInfo.argAliases ?? {}).find(([, underlying]) => underlying === paramName)?.[0] ??
+        paramName;
+      throw new Error(`missing required argument ${exposed}`);
     }
+    pathParams[paramName] = String(value);
   }
   const path = buildPath(opInfo.path, pathParams);
 
