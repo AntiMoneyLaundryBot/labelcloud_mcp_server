@@ -960,7 +960,7 @@
   },
   {
     "name": "update_incident",
-    "description": "Partially update an incident by UUID `id`: send only the fields to change among `name`, `description`, `incidentDate`, `reference`, `isPublicInfo`; omitted fields stay as they are. The `tag` is immutable and cannot be changed (it is not an input; a tag sent anyway is rejected with API error 400). Making an incident public needs a `write_address_global` key (API error 403 otherwise). API error 404 when it does not exist or is not visible.",
+    "description": "Partially update an incident by UUID `id`: send only the fields to change among `name`, `description`, `reference`, `isPublicInfo`; omitted fields stay as they are. The `tag` is immutable and is not an input of this tool. Changing `incidentDate` returns API error 400, because the tag carries the date. Making an incident public needs a `write_address_global` key (API error 403 otherwise). API error 404 when it does not exist or is not visible.",
     "inputSchema": {
       "type": "object",
       "properties": {
