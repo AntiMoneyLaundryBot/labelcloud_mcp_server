@@ -245,3 +245,38 @@ describe("#285 wire shapes", () => {
     assert.match(dup.content[0]!.text, /API error 409/);
   });
 });
+
+describe("#285 incidentId path parameter", () => {
+  it("T-P: the 5 path-param incident tools send the exact method, URL and body", async () => {
+    await startWith(reply(200, {}));
+    await call("get_incident", { incidentId: INCIDENT_ID }, 1);
+    await call("update_incident", { incidentId: INCIDENT_ID, name: "n2", isPublicInfo: false }, 2);
+    await call("delete_incident", { incidentId: INCIDENT_ID }, 3);
+    await call("get_incident_addresses", { incidentId: INCIDENT_ID, limit: 5, cursor: "c1" }, 4);
+    await call("get_incident_by_tag", { tag: "incident.s33_test.20261106" }, 5);
+    const base = "/v1/black-list/incidents";
+    assert.deepStrictEqual(
+      upstream.hits.map((h) => [h.method, h.url, h.body === "" ? null : JSON.parse(h.body)]),
+      [
+        ["GET", `${base}/${INCIDENT_ID}`, null],
+        ["PATCH", `${base}/${INCIDENT_ID}`, { name: "n2", isPublicInfo: false }],
+        ["DELETE", `${base}/${INCIDENT_ID}`, null],
+        ["GET", `${base}/${INCIDENT_ID}/addresses?limit=5&cursor=c1`, null],
+        ["GET", `${base}/by-tag/incident.s33_test.20261106`, null],
+      ]
+    );
+  });
+
+  it("T-M: a missing or empty incidentId is a local error and sends nothing upstream", async () => {
+    await startWith(reply(200, {}));
+    let id = 1;
+    for (const name of ["get_incident", "update_incident", "delete_incident", "get_incident_addresses"]) {
+      for (const args of [{}, { incidentId: "" }, { id: INCIDENT_ID }]) {
+        const r = await call(name, args, id++);
+        assert.strictEqual(r.isError, true, `${name} ${JSON.stringify(args)}`);
+        assert.match(r.content[0]!.text, /missing required argument incidentId/, name);
+      }
+    }
+    assert.strictEqual(upstream.hits.length, 0);
+  });
+});

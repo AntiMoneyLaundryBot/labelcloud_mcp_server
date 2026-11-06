@@ -244,7 +244,7 @@ describe("#285 AC-8: incident tools through the dev MCP == the dev API", () => {
   });
 
   it("get_incident and get_incident_by_tag == the API fetched by id / by tag", async () => {
-    const viaMcp = await callTool("get_incident", { id: incidentId });
+    const viaMcp = await callTool("get_incident", { incidentId: incidentId });
     const direct = await api("GET", `/v1/black-list/incidents/${incidentId}`);
     evidence["get_incident"] = { mcp: viaMcp.json, api: direct.json };
     assert.strictEqual(direct.status, 200);
@@ -260,7 +260,7 @@ describe("#285 AC-8: incident tools through the dev MCP == the dev API", () => {
 
   it("get_incident_addresses: follow cursor to null; EVM is evm_eoa lowercase; == API", async () => {
     const viaMcp = await followAll<Record<string, unknown>>(async (cursor) => {
-      const r = await callTool("get_incident_addresses", { id: incidentId, limit: 1, ...(cursor ? { cursor } : {}) });
+      const r = await callTool("get_incident_addresses", { incidentId: incidentId, limit: 1, ...(cursor ? { cursor } : {}) });
       assert.strictEqual(r.isError, false, r.text);
       return r.json as Page<Record<string, unknown>>;
     });
@@ -320,7 +320,7 @@ describe("#285 AC-8: incident tools through the dev MCP == the dev API", () => {
   });
 
   it("update_incident changes the named fields only; API read-back by id agrees", async () => {
-    const r = await callTool("update_incident", { id: incidentId, description: `updated ${nonce}` });
+    const r = await callTool("update_incident", { incidentId: incidentId, description: `updated ${nonce}` });
     evidence["update_incident"] = r;
     assert.strictEqual(r.isError, false, r.text);
     const direct = await api("GET", `/v1/black-list/incidents/${incidentId}`);
@@ -340,12 +340,12 @@ describe("#285 AC-8: incident tools through the dev MCP == the dev API", () => {
     assert.ok(tool, "update_incident missing from tools/list");
     const props = Object.keys(tool.inputSchema?.properties ?? {});
     evidence["update_incident-schema-properties"] = props;
-    assert.ok(props.length > 0 && props.includes("id"), "update_incident schema has no properties");
+    assert.ok(props.length > 0 && props.includes("incidentId"), "update_incident schema has no properties");
     assert.ok(!props.includes("tag"), "update_incident must not expose a `tag` property");
 
     // (ii) an extra `tag` is either rejected by the MCP schema or ignored: the backend row's tag is unchanged on re-GET.
     // (omitArgs:["tag"] means it can never reach the backend; a PATCH incidentDate change -> 400 is a backend rule, not tested here.)
-    const viaMcp = await callTool("update_incident", { id: incidentId, tag: "incident.hijack.20261106" });
+    const viaMcp = await callTool("update_incident", { incidentId: incidentId, tag: "incident.hijack.20261106" });
     evidence["update_incident-tag-mcp"] = viaMcp;
     const after = (await api("GET", `/v1/black-list/incidents/${incidentId}`)).json as Record<string, unknown>;
     evidence["update_incident-tag-after"] = { isError: viaMcp.isError, tag: after.tag };
@@ -353,14 +353,14 @@ describe("#285 AC-8: incident tools through the dev MCP == the dev API", () => {
   });
 
   it("delete_incident -> null, idempotent; DELETED visible via get and status filter, hidden by default", async () => {
-    const first = await callTool("delete_incident", { id: incidentId });
+    const first = await callTool("delete_incident", { incidentId: incidentId });
     evidence["delete_incident"] = first;
     assert.strictEqual(first.isError, false, first.text);
     assert.strictEqual(first.text, "null");
-    const repeat = await callTool("delete_incident", { id: incidentId });
+    const repeat = await callTool("delete_incident", { incidentId: incidentId });
     assert.strictEqual(repeat.isError, false, repeat.text);
 
-    const viaMcp = await callTool("get_incident", { id: incidentId });
+    const viaMcp = await callTool("get_incident", { incidentId: incidentId });
     const direct = await api("GET", `/v1/black-list/incidents/${incidentId}`);
     assert.strictEqual((direct.json as { status: string }).status, "DELETED");
     assert.deepStrictEqual(viaMcp.json, direct.json);
