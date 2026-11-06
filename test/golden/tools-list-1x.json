@@ -868,7 +868,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Incident name"
+          "description": "Incident name (1..256 characters)"
         },
         "incidentDate": {
           "type": "string",
@@ -876,19 +876,18 @@
         },
         "isPublicInfo": {
           "type": "boolean",
-          "description": "Public incident (default false). Public requires a write_address_global key."
+          "description": "Public incidents need write_address_global. Default false (private to the owner organization)."
         },
         "description": {
-          "type": "string",
-          "description": "Incident description"
+          "type": "string"
         },
         "reference": {
           "type": "string",
-          "description": "Incident reference, e.g. a report URL"
+          "description": "Reference, e.g. a URL"
         },
         "tag": {
           "type": "string",
-          "description": "Optional explicit tag; omit to auto-generate incident.<slug>.<yyyymmdd>. Its date part must equal incidentDate written as yyyymmdd, otherwise 400."
+          "description": "Explicit tag incident.<slug>.<yyyymmdd>; its date part must equal incidentDate. Generated from name when absent."
         }
       },
       "required": [
@@ -920,8 +919,7 @@
       "type": "object",
       "properties": {
         "tag": {
-          "type": "string",
-          "description": "Exact incident tag, e.g. incident.binance_hack.20261030. Sent verbatim, never lowercased or converted."
+          "type": "string"
         }
       },
       "required": [
@@ -937,27 +935,24 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Incident name filter"
+          "description": "Case-insensitive name substring"
         },
         "status": {
           "type": "string",
-          "description": "Single incident status (default ACTIVE)",
           "enum": [
             "ACTIVE",
             "DELETED"
           ]
         },
         "isPublicInfo": {
-          "type": "boolean",
-          "description": "Only public (true) or only private (false) incidents"
+          "type": "boolean"
         },
         "limit": {
-          "type": "integer",
-          "description": "Page size, 1-100 (default 50)"
+          "type": "number"
         },
         "cursor": {
           "type": "string",
-          "description": "Opaque cursor: the `nextCursor` of the previous page, passed back unchanged"
+          "description": "Opaque cursor from nextCursor. Follow it until nextCursor is null; a page may be short or empty before the end."
         }
       },
       "required": []
@@ -974,24 +969,19 @@
           "description": "Incident UUID. Get this from the `id` field of create_incident, search_incidents or get_incident_by_tag, not the incident name or tag."
         },
         "name": {
-          "type": "string",
-          "description": "Incident name"
+          "type": "string"
         },
         "description": {
-          "type": "string",
-          "description": "Incident description"
+          "type": "string"
         },
         "incidentDate": {
-          "type": "string",
-          "description": "Incident date, YYYY-MM-DD"
+          "type": "string"
         },
         "reference": {
-          "type": "string",
-          "description": "Incident reference, e.g. a report URL"
+          "type": "string"
         },
         "isPublicInfo": {
-          "type": "boolean",
-          "description": "Public incident. Public requires a write_address_global key."
+          "type": "boolean"
         }
       },
       "required": [
@@ -1026,12 +1016,11 @@
           "description": "Incident UUID. Get this from the `id` field of create_incident, search_incidents or get_incident_by_tag, not the incident name or tag."
         },
         "limit": {
-          "type": "integer",
-          "description": "Page size (default and maximum set by the backend)"
+          "type": "number"
         },
         "cursor": {
           "type": "string",
-          "description": "Opaque cursor: the `nextCursor` of the previous page, passed back unchanged"
+          "description": "Opaque cursor from nextCursor. Follow it until nextCursor is null; a page may be short or empty before the end."
         }
       },
       "required": [
@@ -1051,7 +1040,7 @@
         },
         "network": {
           "type": "string",
-          "description": "Only incidents tagged on this network (optional). EVM chains are normalised to evm_eoa.",
+          "description": "Narrow to one network; every EVM chain reads as evm_eoa.",
           "enum": [
             "unknown",
             "tron",
