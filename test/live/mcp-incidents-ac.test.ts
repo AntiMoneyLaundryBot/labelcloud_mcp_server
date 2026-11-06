@@ -331,18 +331,25 @@ describe("#285 AC-8: incident tools through the dev MCP == the dev API", () => {
     assert.deepStrictEqual(r.json, inc);
   });
 
-  it("control: update_incident with `tag` -> 400 (MCP and direct PATCH); tag unchanged", async () => {
+  it("control: update_incident exposes no `tag` input; an extra `tag` never changes the stored tag", async () => {
+    // (i) AC-8 text: tools/list shows no `tag` property on update_incident.
+    const list = await mcpRpc("tools/list", {}, true);
+    const tool = (list.result?.tools as Array<{ name: string; inputSchema?: { properties?: Record<string, unknown> } }>).find(
+      (t) => t.name === "update_incident"
+    );
+    assert.ok(tool, "update_incident missing from tools/list");
+    const props = Object.keys(tool.inputSchema?.properties ?? {});
+    evidence["update_incident-schema-properties"] = props;
+    assert.ok(props.length > 0 && props.includes("id"), "update_incident schema has no properties");
+    assert.ok(!props.includes("tag"), "update_incident must not expose a `tag` property");
+
+    // (ii) an extra `tag` is either rejected by the MCP schema or ignored: the backend row's tag is unchanged on re-GET.
+    // (omitArgs:["tag"] means it can never reach the backend; a PATCH incidentDate change -> 400 is a backend rule, not tested here.)
     const viaMcp = await callTool("update_incident", { id: incidentId, tag: "incident.hijack.20261106" });
     evidence["update_incident-tag-mcp"] = viaMcp;
-    assert.strictEqual(viaMcp.isError, true, viaMcp.text);
-    assert.match(viaMcp.text, /API error 400/);
-
-    const direct = await api("PATCH", `/v1/black-list/incidents/${incidentId}`, { tag: "incident.hijack.20261106" });
-    evidence["update_incident-tag-api"] = { status: direct.status, body: direct.json };
-    assert.strictEqual(direct.status, 400);
-
     const after = (await api("GET", `/v1/black-list/incidents/${incidentId}`)).json as Record<string, unknown>;
-    assert.strictEqual(after.tag, incidentTag);
+    evidence["update_incident-tag-after"] = { isError: viaMcp.isError, tag: after.tag };
+    assert.strictEqual(after.tag, incidentTag, "backend tag changed after an update_incident call carrying `tag`");
   });
 
   it("delete_incident -> null, idempotent; DELETED visible via get and status filter, hidden by default", async () => {
