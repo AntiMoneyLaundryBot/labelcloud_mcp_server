@@ -1538,6 +1538,388 @@
                     "ApiEntity"
                 ]
             }
+        },
+        "/v1/black-list/incidents": {
+            "post": {
+                "description": "The tag is generated from name and incidentDate (incident.<slug>.<yyyymmdd>) unless supplied; a supplied tag keeps that format and its date part must equal incidentDate (400 otherwise). Public incidents need write_address_global (403). 409 when the tag is taken, a deleted incident included.",
+                "operationId": "IncidentsController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateIncidentDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "summary": "Create an incident",
+                "tags": [
+                    "Incidents"
+                ]
+            },
+            "get": {
+                "description": "Fills each page up to limit (at most 2,000 rows scanned per request); a page may still be short or empty before the end. Follow nextCursor until it is null.",
+                "operationId": "IncidentsController_search",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "required": false,
+                        "in": "query",
+                        "description": "Case-insensitive name substring",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "default": "ACTIVE",
+                            "type": "string",
+                            "enum": [
+                                "ACTIVE",
+                                "DELETED"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "isPublicInfo",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 50,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "description": "Opaque cursor from nextCursor. Follow it until nextCursor is null; a page may be short or empty before the end.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "summary": "Search incidents",
+                "tags": [
+                    "Incidents"
+                ]
+            }
+        },
+        "/v1/black-list/incidents/by-tag/{tag}": {
+            "get": {
+                "description": "The claim holder only. A DELETED incident is returned to its owner and to global readers. The response includes organization.",
+                "operationId": "IncidentsController_showByTag",
+                "parameters": [
+                    {
+                        "name": "tag",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "summary": "Get the incident that holds a tag",
+                "tags": [
+                    "Incidents"
+                ]
+            }
+        },
+        "/v1/black-list/incidents/{incidentId}": {
+            "get": {
+                "operationId": "IncidentsController_show",
+                "parameters": [
+                    {
+                        "name": "incidentId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "summary": "Get an incident by id",
+                "tags": [
+                    "Incidents"
+                ]
+            },
+            "patch": {
+                "description": "Only the fields sent change. tag or any unknown field is a 400. Making an incident public needs write_address_global.",
+                "operationId": "IncidentsController_update",
+                "parameters": [
+                    {
+                        "name": "incidentId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateIncidentDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "summary": "Update an incident (the tag is immutable)",
+                "tags": [
+                    "Incidents"
+                ]
+            },
+            "delete": {
+                "description": "Owner organization or write_address_global. The tag stays claimed.",
+                "operationId": "IncidentsController_destroy",
+                "parameters": [
+                    {
+                        "name": "incidentId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "summary": "Delete an incident (soft; idempotent)",
+                "tags": [
+                    "Incidents"
+                ]
+            }
+        },
+        "/v1/black-list/incidents/{incidentId}/addresses": {
+            "get": {
+                "description": "Addresses the caller cannot see are left out. A page may be short or empty before the end; follow nextCursor until it is null. 404 when the incident is absent or not visible.",
+                "operationId": "IncidentMembershipController_listAddresses",
+                "parameters": [
+                    {
+                        "name": "incidentId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 50,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "description": "Opaque cursor from nextCursor. Follow it until nextCursor is null; a page may be short or empty before the end.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "summary": "List the addresses tagged with an incident",
+                "tags": [
+                    "IncidentMembership"
+                ]
+            }
+        },
+        "/v1/black-list/addresses/{address}/incidents": {
+            "get": {
+                "description": "Only incidents the caller can see. An address the caller cannot see gives an empty list.",
+                "operationId": "IncidentMembershipController_listIncidents",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "required": false,
+                        "in": "query",
+                        "description": "Narrow to one network; every EVM chain reads as evm_eoa.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "unknown",
+                                "tron",
+                                "ethereum",
+                                "bitcoin",
+                                "solana",
+                                "evmos",
+                                "cosmos",
+                                "polygon",
+                                "arbitrum",
+                                "avalanche",
+                                "cronos",
+                                "optimism",
+                                "evm_eoa",
+                                "sui",
+                                "aptos",
+                                "doge",
+                                "bsc",
+                                "ton",
+                                "zksync",
+                                "multiversx",
+                                "ripple",
+                                "tao",
+                                "polkadot",
+                                "ronin",
+                                "cardano",
+                                "confidence",
+                                "monero",
+                                "centrifuge",
+                                "acala",
+                                "algorand",
+                                "zcash",
+                                "dash",
+                                "litecoin",
+                                "blast",
+                                "xrp_ledger",
+                                "near",
+                                "terra_classic",
+                                "manta",
+                                "moonbeam",
+                                "base",
+                                "bitcoin_cash",
+                                "scroll",
+                                "eos",
+                                "kaspa",
+                                "theta",
+                                "internet_computer",
+                                "sei",
+                                "thor_chain",
+                                "stellar",
+                                "injective",
+                                "zilliqa",
+                                "hedera",
+                                "astar",
+                                "bittensor",
+                                "ethereum_classic",
+                                "kava",
+                                "kusama",
+                                "tezos",
+                                "filecoin",
+                                "enjin",
+                                "neuroweb",
+                                "krest",
+                                "hydration",
+                                "bts",
+                                "waves"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "summary": "List the incidents an address is tagged with",
+                "tags": [
+                    "IncidentMembership"
+                ]
+            }
         }
     },
     "info": {
@@ -1816,6 +2198,63 @@
                     "tag",
                     "added"
                 ]
+            },
+            "CreateIncidentDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Incident name (1..256 characters)"
+                    },
+                    "incidentDate": {
+                        "type": "string",
+                        "description": "Incident date, YYYY-MM-DD",
+                        "example": "2026-10-30"
+                    },
+                    "isPublicInfo": {
+                        "type": "boolean",
+                        "description": "Public incidents need write_address_global. Default false (private to the owner organization).",
+                        "default": false
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "reference": {
+                        "type": "string",
+                        "description": "Reference, e.g. a URL"
+                    },
+                    "tag": {
+                        "type": "string",
+                        "description": "Explicit tag incident.<slug>.<yyyymmdd>; its date part must equal incidentDate. Generated from name when absent.",
+                        "pattern": "^incident\\.[a-z0-9_]+\\.[0-9]{8}$",
+                        "maxLength": 128
+                    }
+                },
+                "required": [
+                    "name",
+                    "incidentDate"
+                ]
+            },
+            "UpdateIncidentDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "incidentDate": {
+                        "type": "string",
+                        "example": "2026-10-30"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "isPublicInfo": {
+                        "type": "boolean"
+                    }
+                }
             }
         }
     }

@@ -176,6 +176,19 @@ describe("canonicalizeToolArgs (the src/index.ts:153 seam, allow-listed to get_a
     });
   }
 
+  it("canonicalizes address for get_address_incidents on evm_eoa, keeps tron byte-exact (#285)", () => {
+    const evm = canonicalizeToolArgs("get_address_incidents", {
+      address: CHECKSUMMED,
+      network: "evm_eoa",
+    });
+    assert.strictEqual(evm.address, LOWERCASE);
+    const tron = canonicalizeToolArgs("get_address_incidents", {
+      address: CHECKSUMMED,
+      network: "tron",
+    });
+    assert.strictEqual(tron.address, CHECKSUMMED);
+  });
+
   it("leaves args byte-identical for every non-allow-listed tool (Q2 / C-2 guard)", () => {
     for (const toolName of [
       "search_addresses",
