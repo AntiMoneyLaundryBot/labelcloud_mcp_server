@@ -1,7 +1,7 @@
 import type { MCPTool } from "./openapi-to-mcp.js";
 
 /**
- * The 9 tools that only read Label Cloud state.
+ * The 14 tools that only read Label Cloud state.
  */
 const READ_ONLY = new Set([
   "search_addresses",
@@ -13,21 +13,33 @@ const READ_ONLY = new Set([
   "get_entity",
   "get_networks",
   "get_types",
+  "get_incident",
+  "get_incident_by_tag",
+  "search_incidents",
+  "get_incident_addresses",
+  "get_address_incidents",
 ]);
 
 /**
- * The 3 tools that permanently remove a row.
+ * The 4 tools that permanently remove a row (or soft-delete one).
  */
-const DESTRUCTIVE = new Set(["delete_address", "delete_entity", "remove_address_tag"]);
+const DESTRUCTIVE = new Set([
+  "delete_address",
+  "delete_entity",
+  "remove_address_tag",
+  "delete_incident",
+]);
 
 /**
- * The 4 tools that write but never destroy.
+ * The 6 tools that write but never destroy.
  */
 const WRITE = new Set([
   "create_address",
   "create_entity",
   "set_auto_tracing",
   "add_address_tag",
+  "create_incident",
+  "update_incident",
 ]);
 
 const EXPECTED_TOOL_COUNT = READ_ONLY.size + DESTRUCTIVE.size + WRITE.size;
@@ -56,7 +68,7 @@ function annotationsFor(toolName: string): McpToolAnnotations {
  * Adds a readOnlyHint/destructiveHint pair to each tool for the AC-10 client
  * hint. Throws rather than silently under-annotating if a tool is missing
  * from all three lists above, or if the lists and the actual tool set don't
- * both land on exactly 16 - a renamed or added tool must update this file.
+ * both land on exactly 24 - a renamed or added tool must update this file.
  */
 export function withAnnotations(tools: MCPTool[]): AnnotatedTool[] {
   const annotated = tools.map((tool) => ({ ...tool, annotations: annotationsFor(tool.name) }));
@@ -65,10 +77,10 @@ export function withAnnotations(tools: MCPTool[]): AnnotatedTool[] {
   if (
     tools.length !== EXPECTED_TOOL_COUNT ||
     uniqueNames.size !== EXPECTED_TOOL_COUNT ||
-    EXPECTED_TOOL_COUNT !== 16
+    EXPECTED_TOOL_COUNT !== 24
   ) {
     throw new Error(
-      `withAnnotations: expected exactly 16 uniquely-named tools classified across ` +
+      `withAnnotations: expected exactly 24 uniquely-named tools classified across ` +
         `READ_ONLY/DESTRUCTIVE/WRITE, got ${tools.length} tools (${uniqueNames.size} unique) ` +
         `against ${EXPECTED_TOOL_COUNT} classified`
     );

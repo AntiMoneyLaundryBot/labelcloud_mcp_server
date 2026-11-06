@@ -75,6 +75,7 @@ const ADDRESS_CANONICAL_TOOLS = new Set([
   "get_auto_tracer_data",
   "add_address_tag",
   "remove_address_tag",
+  "get_address_incidents",
 ]);
 
 /**

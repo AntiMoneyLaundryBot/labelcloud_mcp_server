@@ -1538,6 +1538,376 @@
                     "ApiEntity"
                 ]
             }
+        },
+        "/v1/black-list/incidents": {
+            "post": {
+                "operationId": "IncidentsController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateIncidentDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "Incidents"
+                ]
+            },
+            "get": {
+                "operationId": "IncidentsController_search",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "required": false,
+                        "in": "query",
+                        "description": "Incident name filter",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "required": false,
+                        "in": "query",
+                        "description": "Single incident status (default ACTIVE)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "ACTIVE",
+                                "DELETED"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "isPublicInfo",
+                        "required": false,
+                        "in": "query",
+                        "description": "Only public (true) or only private (false) incidents",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Page size, 1-100 (default 50)",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "description": "Opaque cursor: the `nextCursor` of the previous page, passed back unchanged",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "Incidents"
+                ]
+            }
+        },
+        "/v1/black-list/incidents/by-tag/{tag}": {
+            "get": {
+                "operationId": "IncidentsController_showByTag",
+                "parameters": [
+                    {
+                        "name": "tag",
+                        "required": true,
+                        "in": "path",
+                        "description": "Exact incident tag, e.g. incident.binance_hack.20261030. Sent verbatim, never lowercased or converted.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "Incidents"
+                ]
+            }
+        },
+        "/v1/black-list/incidents/{incidentId}": {
+            "get": {
+                "operationId": "IncidentsController_show",
+                "parameters": [
+                    {
+                        "name": "incidentId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Incident ID (UUID)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "Incidents"
+                ]
+            },
+            "patch": {
+                "operationId": "IncidentsController_update",
+                "parameters": [
+                    {
+                        "name": "incidentId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Incident ID (UUID)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateIncidentDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "Incidents"
+                ]
+            },
+            "delete": {
+                "operationId": "IncidentsController_destroy",
+                "parameters": [
+                    {
+                        "name": "incidentId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Incident ID (UUID)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "Incidents"
+                ]
+            }
+        },
+        "/v1/black-list/incidents/{incidentId}/addresses": {
+            "get": {
+                "operationId": "IncidentMembershipController_listAddresses",
+                "parameters": [
+                    {
+                        "name": "incidentId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Incident ID (UUID)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Page size (default and maximum set by the backend)",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "description": "Opaque cursor: the `nextCursor` of the previous page, passed back unchanged",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "Incidents"
+                ]
+            }
+        },
+        "/v1/black-list/addresses/{address}/incidents": {
+            "get": {
+                "operationId": "IncidentMembershipController_listIncidents",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "required": true,
+                        "in": "path",
+                        "description": "Address hash",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "required": false,
+                        "in": "query",
+                        "description": "Only incidents tagged on this network (optional). EVM chains are normalised to evm_eoa.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "unknown",
+                                "tron",
+                                "ethereum",
+                                "bitcoin",
+                                "solana",
+                                "evmos",
+                                "cosmos",
+                                "polygon",
+                                "arbitrum",
+                                "avalanche",
+                                "cronos",
+                                "optimism",
+                                "evm_eoa",
+                                "sui",
+                                "aptos",
+                                "doge",
+                                "bsc",
+                                "ton",
+                                "zksync",
+                                "multiversx",
+                                "ripple",
+                                "tao",
+                                "polkadot",
+                                "ronin",
+                                "cardano",
+                                "confidence",
+                                "monero",
+                                "centrifuge",
+                                "acala",
+                                "algorand",
+                                "zcash",
+                                "dash",
+                                "litecoin",
+                                "blast",
+                                "xrp_ledger",
+                                "near",
+                                "terra_classic",
+                                "manta",
+                                "moonbeam",
+                                "base",
+                                "bitcoin_cash",
+                                "scroll",
+                                "eos",
+                                "kaspa",
+                                "theta",
+                                "internet_computer",
+                                "sei",
+                                "thor_chain",
+                                "stellar",
+                                "injective",
+                                "zilliqa",
+                                "hedera",
+                                "astar",
+                                "bittensor",
+                                "ethereum_classic",
+                                "kava",
+                                "kusama",
+                                "tezos",
+                                "filecoin",
+                                "enjin",
+                                "neuroweb",
+                                "krest",
+                                "hydration",
+                                "bts",
+                                "waves"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "X-Api-Key": []
+                    }
+                ],
+                "tags": [
+                    "Incidents"
+                ]
+            }
         }
     },
     "info": {
@@ -1816,6 +2186,64 @@
                     "tag",
                     "added"
                 ]
+            },
+            "CreateIncidentDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Incident name"
+                    },
+                    "incidentDate": {
+                        "type": "string",
+                        "description": "Incident date, YYYY-MM-DD"
+                    },
+                    "isPublicInfo": {
+                        "type": "boolean",
+                        "description": "Public incident (default false). Public requires a write_address_global key."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Incident description"
+                    },
+                    "reference": {
+                        "type": "string",
+                        "description": "Incident reference, e.g. a report URL"
+                    },
+                    "tag": {
+                        "type": "string",
+                        "description": "Optional explicit tag; omit to auto-generate incident.<slug>.<yyyymmdd>. Its date part must equal incidentDate written as yyyymmdd, otherwise 400."
+                    }
+                },
+                "required": [
+                    "name",
+                    "incidentDate"
+                ]
+            },
+            "UpdateIncidentDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Incident name"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Incident description"
+                    },
+                    "incidentDate": {
+                        "type": "string",
+                        "description": "Incident date, YYYY-MM-DD"
+                    },
+                    "reference": {
+                        "type": "string",
+                        "description": "Incident reference, e.g. a report URL"
+                    },
+                    "isPublicInfo": {
+                        "type": "boolean",
+                        "description": "Public incident. Public requires a write_address_global key."
+                    }
+                }
             }
         }
     }
