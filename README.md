@@ -183,8 +183,21 @@ The following API endpoints are exposed as MCP tools:
 - `GET /v1/black-list/entities` - Search entities
 - `GET /v1/black-list/entities/{entityId}` - Get entity
 - `DELETE /v1/black-list/entities/{entityId}` - Delete entity
+- `POST /v1/black-list/incidents` - Create incident
+- `GET /v1/black-list/incidents` - Search incidents (follow `nextCursor` to null)
+- `GET /v1/black-list/incidents/{incidentId}` - Get incident
+- `GET /v1/black-list/incidents/by-tag/{tag}` - Get incident by tag
+- `PATCH /v1/black-list/incidents/{incidentId}` - Update incident (the `tag` is immutable)
+- `DELETE /v1/black-list/incidents/{incidentId}` - Delete (soft) incident
+- `GET /v1/black-list/incidents/{incidentId}/addresses` - Get incident addresses
+- `GET /v1/black-list/addresses/{address}/incidents` - Get address incidents
 - `GET /v1/black-list/networks` - Get networks
 - `GET /v1/black-list/types` - Get types
+
+v2.2.0 exposes 24 tools: the 16 above plus the 8 incident tools (`create_incident`, `get_incident`,
+`get_incident_by_tag`, `search_incidents`, `update_incident`, `delete_incident`,
+`get_incident_addresses`, `get_address_incidents`). An incident's tag is put on addresses with
+`add_address_tag`.
 
 `set_auto_tracing` calls no new endpoint: it composes the existing `GET`/`POST
 /v1/black-list/addresses` operations above (see Architecture).
@@ -220,6 +233,9 @@ node --import tsx --test test/mcp-crud-entity.test.ts
 
 # set_auto_tracing / get_auto_tracer_data round-trip
 node --import tsx --test test/mcp-auto-tracing.test.ts
+
+# Incident tools (offline, mock upstream)
+node --import tsx --test test/mcp-incident-tools.test.ts
 ```
 
 ## Adding New Tools
