@@ -1,295 +1,168 @@
-# AMLBot Label Cloud MCP Server
+<!--
+  Documented at origin/dev 74022f461a6c56cea36883a2b459bf57b47a343d (labelcloud_mcp_server, package version 2.2.0).
+  Tool parameters are derived from docs/blacklist-api-endpoints.json through the rules in
+  src/openapi-to-mcp.ts:187-307 and the per-tool settings in src/tool-config.ts.
+  Backend references point to blacklist-service-backend origin/dev 893fd5a8a5cc60294846a0c7865f7371a8cb1832.
+-->
 
-An MCP (Model Context Protocol) server that provides AI assistants with tools to interact with the AMLBot Label Cloud API for blockchain address and entity management.
+# Label Cloud MCP server (v2.2.0)
 
-## Overview
+An MCP server that exposes the AMLBot Label Cloud API (`blacklist-service-backend`) as **24 tools**: address labels,
+LabelSniffer flags and propagation trees, address tags, entities, incidents and reference data
+(`package.json:3`, `src/tool-annotations.ts:73-90`).
 
-This server exposes the AMLBot Label Cloud API as MCP tools, enabling AI assistants (like Claude) to:
+It stores nothing. Every tool is one or two HTTP calls to the Label Cloud API with the caller's key
+(`src/index.ts:83-112`). For what those calls read and write, see the backend docs
+(§ Data contract below).
 
-- Add, search, and remove blockchain addresses from the label cloud
-- Create, search, and manage entities (groups of related addresses)
-- Associate addresses with entities
-- Query supported blockchain networks and address types
+## How it works
 
-## Architecture
+- `docs/blacklist-api-endpoints.json` is a snapshot of the backend's OpenAPI spec. Tool input schemas are generated from
+  it at start-up (`src/index.ts:30-37`).
+- `src/tool-config.ts` chooses which `operationId`s become tools, their names and descriptions, and per-tool
+  `presetArgs` (hidden fixed values), `argAliases` (renamed inputs) and `omitArgs` (hidden inputs).
+- `set_auto_tracing` is hand-written (`src/set-auto-tracing.ts`): read the address, refuse if absent/ambiguous,
+  re-post it with only `enableSniffer` changed, read it again.
+- For `get_auto_tracer_data`, `add_address_tag`, `remove_address_tag` and `get_address_incidents` an EVM-shaped
+  `address` on an EVM network (or with no network) is lowercased before the call (`src/address-canonical.ts`).
+  `search_addresses` and the write tools send the address as given.
+- Path values containing a `.` or `..` segment are rejected locally (`src/openapi-to-mcp.ts:363-377`); an empty
+  required path value fails locally with `missing required argument <name>` (`src/index.ts:165-176`).
+- Results come back as the backend's JSON body as text. A non-2xx answer becomes a tool error
+  `Error: API error <status>: <body>` (`src/index.ts:104-107`, `:230-241`). Empty bodies (204) return `null`.
 
-The server uses a **hybrid OpenAPI-to-MCP approach**:
-
-1. **OpenAPI Spec** (`docs/blacklist-api-endpoints.json`) - Source of truth for API schemas and parameters
-2. **Tool Config** (`src/tool-config.ts`) - Maps API operations to MCP tools with custom names and descriptions; a `ToolConfig` can also carry `presetArgs` (fixed, hidden values merged into every call), `argAliases` (an exposed input renamed from its underlying OpenAPI param) and `omitArgs` (underlying params hidden from the schema entirely) - this lets several tools share one `operationId` with different, simplified input shapes (e.g. `get_auto_tracer_data` over the same `GET /addresses` operation as `search_addresses`)
-3. **Parser** (`src/openapi-to-mcp.ts`) - Generates MCP tool definitions from OpenAPI spec at runtime, applying each config's presetArgs/argAliases/omitArgs
-
-This architecture ensures:
-- Single source of truth for API schemas
-- Easy maintenance when API changes
-- Control over which endpoints are exposed as tools
-- Friendly tool names for AI assistants
-
-`set_auto_tracing` is the **one exception**: it is hand-written in `src/set-auto-tracing.ts`,
-not generated from the OpenAPI allow-list. It flips the `enableSniffer` flag on ONE address
-by composing two allow-listed operations the server already exposes (`GET` then `POST
-/addresses`) with a read-refuse-write sequence the declarative generator has no mechanism
-for: it refuses if the address is absent or DELETED (never creates a row, never reactivates
-a DELETED one), then re-posts the stored record with only the flag changed. No new backend
-route exists for this - see the spec at
-`ProductOwner/specs/4.inflight/SPEC-2026-09-18-labelcloud-mcp-auto-tracing-tools/spec.md`
-(`## Amendments`, A3) for why.
-
-## Available Tools
-
-| Tool | Description |
-|------|-------------|
-| `create_address` | Add a blockchain address to the Label Cloud |
-| `search_addresses` | Search for addresses in the Label Cloud |
-| `set_auto_tracing` | Flip the LabelSniffer (auto-tracer / auto-label-propagation) flag on ONE existing address, without a full-record upsert |
-| `get_auto_tracer_data` | Read the LabelSniffer flag and its five provenance fields for one address |
-| `delete_address` | Remove an address from the Label Cloud |
-| `add_address_tag` | Add ONE tag to an address on one network (`(address, tag, network)`, all required) |
-| `remove_address_tag` | PERMANENTLY remove ONE tag from an address on one network |
-| `get_entity_addresses` | Get all addresses associated with an entity |
-| `get_addresses_by_origin` | Every address a red label propagated to from an origin address |
-| `get_addresses_by_previous` | The direct children of one address in a propagation tree |
-| `create_entity` | Create a new entity |
-| `search_entities` | Search for entities |
-| `get_entity` | Get an entity by ID |
-| `delete_entity` | Delete an entity |
-| `get_networks` | Get list of supported blockchain networks |
-| `get_types` | Get list of available address/entity types |
-
-## Installation
+## Install and run
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd labelcloud-mcp-server
-
-# Install dependencies
 npm install
-
-# Build the project
 npm run build
+npm run start:http    # HTTP (Streamable HTTP), the deployed mode
+npm start             # stdio, single consumer
+npm test
 ```
 
-## Usage
+### Environment variables (names only)
 
-### Remote (HTTP) — primary
+| Variable | Mode | Meaning | Source |
+|---|---|---|---|
+| `BLACKLIST_API_URL` | both | Label Cloud API base URL. stdio default `https://api-blacklist.amlbot.com` (prod). **HTTP mode refuses to start if unset.** | `src/index.ts:32-34`, `:338-343` |
+| `BLACKLIST_API_KEY` | stdio only | the single Label Cloud key used for every call; required in stdio. **HTTP mode refuses to start if it is set.** | `src/index.ts:247-255`, `:332-337` |
+| `MCP_HOST` / `MCP_PORT` | HTTP | listen address / port (defaults `127.0.0.1` / `3000`; the image sets `0.0.0.0`) | `src/index.ts:345-346`, `Dockerfile:16-17` |
+| `MCP_ALLOWED_HOSTS` | HTTP | comma-separated hostnames allowed in `Host`/`Origin` (ports stripped); loopback always allowed | `src/index.ts:292-303` |
 
-As of v2.0.0 the server ships as a Streamable HTTP service (MCP protocol `2026-07-28`, with
-a 2025-11-25 legacy fallback for older clients), deployed on `dev` and `prod` instances — see
-`docs/DEPLOYMENT.md` for the host/port table, environment variables, and probes. The **HTTP
-server never holds a Label Cloud API key**; it refuses to start if one is present in its
-environment. Instead, each consumer sends its own key per-request:
+### Deployed instances (`docs/DEPLOYMENT.md:33-40`)
+
+| | Dev | Prod |
+|---|---|---|
+| MCP endpoint | `http://94.130.51.230:9180/mcp` | `http://162.55.129.53:9180/mcp` |
+| Upstream Label Cloud | `https://api-blacklist.amlbot.rocks` | `https://api-blacklist.amlbot.com` |
+
+### Auth (HTTP mode)
+
+Send your own Label Cloud API key on every request (`src/index.ts:264-274`):
+
+- `Authorization: Bearer <key>`, or
+- `X-Api-Key: <key>` (used when no Bearer header matched).
+
+The server forwards it upstream as `X-Api-Key` (`src/index.ts:92-96`) and never stores or logs it. A `tools/call`
+without a key gets HTTP 401, `WWW-Authenticate: Bearer realm="labelcloud-mcp"`, JSON-RPC error `-32001`
+(`src/index.ts:390-406`). `initialize` and `tools/list` need no key. A key the backend rejects comes back as a tool
+error `API error 403: …`. What a key may do is decided by its Label Cloud role (backend `docs/API.md` §1).
 
 ```bash
 claude mcp add --transport http labelcloud http://<host>:9180/mcp \
   --header "Authorization: Bearer <your Label Cloud API key>"
 ```
 
-(`X-Api-Key: <key>` also works, as a fallback if `Authorization` isn't set.) Point at the dev
-instance (`94.130.51.230:9180`) or the prod instance (`162.55.129.53:9180`) depending which
-Label Cloud environment (`.rocks` / `.com`) you want to query.
+Only `POST /mcp` is served (GET → 405, other paths → 404, body > 1 MiB → 413) (`src/index.ts:358-380`).
 
-### Local (stdio)
+## Tools
 
-For local development, or a single-consumer deployment where a server-held key is
-acceptable, the server still runs over stdio.
+All backend paths are under `/v1/black-list`. "R/W/D" = the tool's MCP annotation: read-only, write, destructive
+(`src/tool-annotations.ts:6-43`). Network enum = the 65 values of the backend `NETWORKS` list (get them with
+`get_networks`). Types: `string[]` means repeat the value; `number` inputs are sent as query strings.
 
-Create a `.env` file based on `.env.example`:
+### Address labels
 
-```bash
-cp .env.example .env
-```
+| Tool | R/W/D | Backend call | Parameters (type, **required**) | Notes |
+|---|---|---|---|---|
+| `create_address` | W | `POST /addresses` | **`address`** string; **`network`** network enum; **`isPublicInfo`** boolean; `type` string (*backend rejects a missing type with 400*); `description`, `subType`, `reference` string; `entityId` string (UUID); `enableSniffer` boolean; `originAddress`, `previousAddress`, `txHash`, `txBlockchain` string; `txTimestamp` string (ISO-8601) | Full upsert of the caller org's row: omitted `entityId`/`description`/… are written as null. The 4 provenance fields go together. Use `set_auto_tracing` to change only the flag. |
+| `search_addresses` | R | `GET /addresses` | **`address`** string; `blockchains` string[] (network enum); `statuses` string[] (`ACTIVE`,`DELETED`); `entityId` string (ignored by the backend); `fields` string[] (`address, network, description, type, subType, reference, fileLink, entityId, publicInfo, organization, enableSniffer, originAddress, previousAddress, txHash, txBlockchain, txTimestamp`) | Returns `{publicBlacklist, privateBlacklist, tags}`. The entity id is returned as `entity_id`. |
+| `get_auto_tracer_data` | R | `GET /addresses` | **`address`** string; `network` string (network enum) → sent as `blockchains=[network]` | Preset, hidden: `fields=[enableSniffer, originAddress, previousAddress, txHash, txBlockchain, txTimestamp]`, `statuses=[ACTIVE]`; `entityId` hidden (`src/tool-config.ts:81-104`). |
+| `set_auto_tracing` | W | `GET /addresses` → `POST /addresses` → `GET /addresses` | **`address`** string; **`network`** string (must equal the stored network); **`enableSniffer`** boolean (`src/index.ts:48-70`) | Refuses if no ACTIVE row, more than one row across orgs, or the row lacks `type`/`publicInfo`. Re-posts `address, network, isPublicInfo, description, type, subType, reference, entityId, enableSniffer`; provenance fields are not sent, so they are kept. Returns `{before, after}` (`src/set-auto-tracing.ts:93-186`). |
+| `delete_address` | D | `DELETE /addresses/{address}` | **`address`** string; `network` string (network enum) | Soft delete of the caller org's row. Backend default network when omitted: `tron`. Returns `null`. |
+| `get_entity_addresses` | R | `GET /addresses/entity/{entityId}` | **`entityId`** string (UUID); `fields` string[] (as above) | `{publicBlacklist, privateBlacklist}` |
+| `get_addresses_by_origin` | R | `GET /addresses/origin/{originAddress}` | **`originAddress`** string; `limit` number (1-10000, default 10000); `offset` number (default 0) | Needs `read_address_global`. Returns `{edges:[{address, previousAddress, txHash, txBlockchain, txTimestamp}], count, limit, offset}`. |
+| `get_addresses_by_previous` | R | `GET /addresses/previous/{previousAddress}` | **`previousAddress`** string; `limit` number; `offset` number | Direct children only; same shape and permission. |
 
-Edit `.env` with your API credentials:
+### Address tags
 
-```env
-BLACKLIST_API_KEY=your_api_key_here
-BLACKLIST_API_URL=https://api-blacklist.amlbot.com
-```
+| Tool | R/W/D | Backend call | Parameters | Notes |
+|---|---|---|---|---|
+| `add_address_tag` | W | `PUT /addresses/{address}/tags/{tag}?network=` | **`address`** string; **`tag`** string (`^[a-z0-9_]+(\.[a-z0-9_]+)*$`, 1-128); **`network`** string (network enum) | Returns `{address, network, tag, added}`; EVM stored as `evm_eoa`. `incident.*` tags need a visible ACTIVE incident holding the tag, else 404. |
+| `remove_address_tag` | D | `DELETE /addresses/{address}/tags/{tag}?network=` | same as `add_address_tag` | Hard delete; returns `null`; 404 if absent or hidden. |
 
-Then run it:
+### Entities
 
-```bash
-npm start
-```
+| Tool | R/W/D | Backend call | Parameters | Notes |
+|---|---|---|---|---|
+| `create_entity` | W | `POST /entities` | **`name`** string; **`isPublicInfo`** boolean; `description`, `type`, `subType`, `reference` string | Backend validates `type` against `get_types`. Upsert on lowercase name + org. |
+| `search_entities` | R | `GET /entities` | **`name`** string (required in the snapshot; optional in the backend); `type`, `subType` string; `statuses` string[] (`ACTIVE`,`DELETED`); `fields` string[] (`name, publicInfo, description, type, subType, reference`) | Name is a prefix match. Returns `{publicList, privateList}`. |
+| `get_entity` | R | `GET /entities/{entityId}` | **`entityId`** string (UUID) | Backend requires a **write** permission for this route. |
+| `delete_entity` | D | `DELETE /entities/{entityId}` | **`entityId`** string (UUID) | 400 if addresses are still linked. |
 
-The server communicates via stdio, making it compatible with MCP clients.
+### Incidents
 
-#### Claude Desktop Integration
+| Tool | R/W/D | Backend call | Parameters | Notes |
+|---|---|---|---|---|
+| `create_incident` | W | `POST /incidents` | **`name`** string (1-256); **`incidentDate`** string (`YYYY-MM-DD`); `isPublicInfo` boolean (default false); `description`, `reference` string; `tag` string | Tag generated as `incident.<slug>.<yyyymmdd>` if omitted. 400 bad tag/date, 403 public without `write_address_global`, 409 tag taken. |
+| `get_incident` | R | `GET /incidents/{incidentId}` | **`incidentId`** string (UUID) | 404 absent or hidden. |
+| `get_incident_by_tag` | R | `GET /incidents/by-tag/{tag}` | **`tag`** string | DELETED shown to owner org / global keys. |
+| `search_incidents` | R | `GET /incidents` | `name` string; `status` string (`ACTIVE`/`DELETED`); `isPublicInfo` boolean; `limit` number (1-100, default 50); `cursor` string | Returns `{items, nextCursor}`; follow `nextCursor` until null (pages can be empty before the end). |
+| `update_incident` | W | `PATCH /incidents/{incidentId}` | **`incidentId`** string; `name`, `description`, `incidentDate`, `reference` string; `isPublicInfo` boolean | `tag` is hidden (`omitArgs`, `src/tool-config.ts:232-239`). Changing `incidentDate` → 400. |
+| `delete_incident` | D | `DELETE /incidents/{incidentId}` | **`incidentId`** string | Soft, idempotent; returns `null`; the tag stays on addresses. |
+| `get_incident_addresses` | R | `GET /incidents/{incidentId}/addresses` | **`incidentId`** string; `limit` number (1-100, default 50); `cursor` string | Returns `{items:[{address, network, tag, createdAt, createdBy}], nextCursor}`. |
+| `get_address_incidents` | R | `GET /addresses/{address}/incidents` | **`address`** string; `network` string (network enum) | Returns `{items:[{network, tag, incident}]}`; hidden address → `items: []`. |
 
-Add the server to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+### Reference data
 
-```json
-{
-  "mcpServers": {
-    "labelcloud": {
-      "command": "node",
-      "args": ["/path/to/labelcloud-mcp-server/dist/index.js"],
-      "env": {
-        "BLACKLIST_API_KEY": "your_api_key_here"
-      }
-    }
-  }
-}
-```
+| Tool | R/W/D | Backend call | Parameters | Returns |
+|---|---|---|---|---|
+| `get_networks` | R | `GET /networks` | none | `{networks: [...]}` |
+| `get_types` | R | `GET /types` | none | `{types: [{category_type, description, code, severity}]}` |
 
-### Development
+### Backend routes not exposed
+Accounts (`/v1/accounts/*`), address files, `GET /addresses/entity/{entityId}/paginate`, bulk export
+(`/addresses/list/jobs`) and the legacy `GET /api/addresses/{address}` (`src/tool-config.ts:142-147`, `:276-334`; bulk
+export is absent from the snapshot).
 
-```bash
-# Watch mode for development
-npm run dev
+## Data contract
 
-# Run tests (see docs/DEPLOYMENT.md for the dev-pinned live suites and MCP_TEST_URL)
-npm test
-```
+This server keeps no state and owns no storage. Each tool's effect on storage is the backend route's effect:
 
-## Project Structure
+- routes, permissions, request/response shapes: `blacklist-service-backend/docs/API.md`
+- tables, keys, writers/readers, retention: `blacklist-service-backend/docs/DATA-CONTRACTS.md`
+  (labels §2.1, change log §2.2, entities §2.5, tags §2.6, incidents §2.7, request log §2.8 — every MCP call is
+  logged there with user agent `labelcloud-mcp/2.2.0`, `src/index.ts:95`).
 
-```
-labelcloud-mcp-server/
-├── src/
-│   ├── index.ts             # MCP server entry point
-│   ├── tool-config.ts       # Tool definitions and mapping
-│   ├── openapi-to-mcp.ts    # OpenAPI to MCP parser
-│   └── set-auto-tracing.ts  # Hand-written set_auto_tracing composite (not generated)
-├── docs/
-│   └── blacklist-api-endpoints.json  # OpenAPI 3.0 spec
-├── test/
-│   ├── mcp-crud-address.test.ts    # Address CRUD tests
-│   ├── mcp-crud-entity.test.ts     # Entity CRUD tests
-│   ├── mcp-auto-tracing.test.ts    # set_auto_tracing / get_auto_tracer_data tests
-│   └── mcp-metadata.test.ts        # Tool discovery & metadata tests
-├── dist/                  # Compiled JavaScript
-├── package.json
-├── tsconfig.json
-└── .env.example
-```
+Keep `docs/blacklist-api-endpoints.json` in step with the backend: tool schemas come from it, not from the live
+backend. Known differences at the SHAs above: `search_entities.name` is required here but optional in the backend;
+`create_address.type` is optional here but required by backend validation.
 
-## API Coverage
+## Adding a tool
 
-### Included Endpoints
+1. Copy the new operation from the backend Swagger (`/api/docs`) into `docs/blacklist-api-endpoints.json`.
+2. Add a `ToolConfig` entry with `include: true` in `src/tool-config.ts`.
+3. Classify it in `src/tool-annotations.ts` and update the expected count (start-up throws otherwise).
+4. `npm run build && npm test`. Done means merged to both `dev` and `main` (`docs/DEPLOYMENT.md:9-19`).
 
-The following API endpoints are exposed as MCP tools:
+## UNVERIFIED
+- The tool list and schemas were derived by reading the generator and the snapshot, not by calling `tools/list` on a
+  running instance.
+- Whether the deployed prod image is v2.2.0.
 
-- `POST /v1/black-list/addresses` - Create address
-- `GET /v1/black-list/addresses` - Search addresses
-- `DELETE /v1/black-list/addresses/{address}` - Delete address
-- `PUT /v1/black-list/addresses/{address}/tags/{tag}` - Add address tag
-- `DELETE /v1/black-list/addresses/{address}/tags/{tag}` - Remove address tag
-- `GET /v1/black-list/addresses/entity/{entityId}` - Get entity addresses
-- `GET /v1/black-list/addresses/origin/{originAddress}` - Get addresses by origin
-- `GET /v1/black-list/addresses/previous/{previousAddress}` - Get addresses by previous
-- `POST /v1/black-list/entities` - Create entity
-- `GET /v1/black-list/entities` - Search entities
-- `GET /v1/black-list/entities/{entityId}` - Get entity
-- `DELETE /v1/black-list/entities/{entityId}` - Delete entity
-- `POST /v1/black-list/incidents` - Create incident
-- `GET /v1/black-list/incidents` - Search incidents (follow `nextCursor` to null)
-- `GET /v1/black-list/incidents/{incidentId}` - Get incident
-- `GET /v1/black-list/incidents/by-tag/{tag}` - Get incident by tag
-- `PATCH /v1/black-list/incidents/{incidentId}` - Update incident (the `tag` is immutable)
-- `DELETE /v1/black-list/incidents/{incidentId}` - Delete (soft) incident
-- `GET /v1/black-list/incidents/{incidentId}/addresses` - Get incident addresses
-- `GET /v1/black-list/addresses/{address}/incidents` - Get address incidents
-- `GET /v1/black-list/networks` - Get networks
-- `GET /v1/black-list/types` - Get types
-
-v2.2.0 exposes 24 tools: the 16 above plus the 8 incident tools (`create_incident`, `get_incident`,
-`get_incident_by_tag`, `search_incidents`, `update_incident`, `delete_incident`,
-`get_incident_addresses`, `get_address_incidents`). An incident's tag is put on addresses with
-`add_address_tag`.
-
-`set_auto_tracing` calls no new endpoint: it composes the existing `GET`/`POST
-/v1/black-list/addresses` operations above (see Architecture).
-
-### Excluded Endpoints
-
-The following are intentionally excluded:
-
-- **Account Management** - Admin operations (`/v1/accounts/*`)
-- **File Operations** - File upload/management (not suitable for MCP)
-- **Pagination** - Paginated endpoints (use standard search instead)
-- **Legacy API** - Deprecated endpoints (`/api/addresses/*`)
-
-## Testing
-
-Run the test suite:
-
-```bash
-npm test
-```
-
-Or run individual test files:
-
-```bash
-# Tool discovery and metadata
-node --import tsx --test test/mcp-metadata.test.ts
-
-# Address CRUD operations
-node --import tsx --test test/mcp-crud-address.test.ts
-
-# Entity CRUD operations with address association
-node --import tsx --test test/mcp-crud-entity.test.ts
-
-# set_auto_tracing / get_auto_tracer_data round-trip
-node --import tsx --test test/mcp-auto-tracing.test.ts
-
-# Incident tools (offline, mock upstream)
-node --import tsx --test test/mcp-incident-tools.test.ts
-```
-
-## Adding New Tools
-
-To expose additional API endpoints as MCP tools:
-
-1. Add the operation to `src/tool-config.ts`:
-
-```typescript
-{
-  operationId: "ApiSomeController_operation",  // From OpenAPI spec
-  name: "my_new_tool",                         // MCP tool name
-  description: "Description for AI assistant", // Tool description
-  include: true,                               // Set to true to enable
-},
-```
-
-2. Rebuild the project:
-
-```bash
-npm run build
-```
-
-The tool will automatically pick up parameters and schemas from the OpenAPI spec.
-
-## Supported Networks
-
-The API supports 65+ blockchain networks including:
-
-- Bitcoin, Ethereum, Tron, Solana
-- Layer 2s: Arbitrum, Optimism, Base, Polygon, zkSync
-- Other chains: Cosmos, Polkadot, Cardano, TON, and many more
-
-Use the `get_networks` tool to retrieve the full list.
-
-## Address Types
-
-Addresses and entities can be categorized with types such as:
-
-- `exchange` - Centralized exchanges
-- `scam` - Scam addresses
-- `mixer` - Mixing services
-- `sanctions` - Sanctioned addresses
-- `stolen_coins` - Theft-related addresses
-- `other` - General category
-
-Use the `get_types` tool to retrieve the full list with descriptions and severity levels.
-
-## License
-
-[Add your license here]
-
-## Support
-
-For issues with this MCP server, please open an issue in the repository.
-
-For AMLBot API questions, contact AMLBot support.
+## Sources
+Repo `labelcloud_mcp_server`, origin/dev `74022f461a6c56cea36883a2b459bf57b47a343d`: `src/index.ts`,
+`src/tool-config.ts`, `src/openapi-to-mcp.ts`, `src/set-auto-tracing.ts`, `src/address-canonical.ts`,
+`src/tool-annotations.ts`, `docs/blacklist-api-endpoints.json`, `docs/DEPLOYMENT.md`, `Dockerfile`, `package.json`.
+Backend `blacklist-service-backend` origin/dev `893fd5a8a5cc60294846a0c7865f7371a8cb1832` for route behaviour.
